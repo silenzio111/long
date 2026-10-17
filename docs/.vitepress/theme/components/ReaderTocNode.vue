@@ -2,7 +2,7 @@
   <div class="toc-node" :class="{ 'has-children': hasChildren, 'is-active': isActive }">
     <div 
       class="toc-row" 
-      :style="{ paddingLeft: `${depth * 14 + 8}px` }"
+      :style="{ paddingLeft: `${depth * 14 + 6}px` }"
       @click="handleClick"
     >
       <button 
@@ -10,7 +10,7 @@
         type="button" 
         class="toggle-caret" 
         @click.stop="isExpanded = !isExpanded"
-        :title="isExpanded ? '折叠' : '展开'"
+        :title="isExpanded ? '折叠子章节' : '展开子章节'"
       >
         {{ isExpanded ? '▾' : '▸' }}
       </button>
@@ -18,7 +18,7 @@
 
       <span class="toc-title" :title="item.title">{{ item.title }}</span>
 
-      <span v-if="item.page" class="toc-page">p.{{ item.page }}</span>
+      <span v-if="item.page" class="toc-page" :title="`跳转至第 ${item.page} 页`">p.{{ item.page }}</span>
     </div>
 
     <!-- 子目录递归渲染 -->
@@ -75,17 +75,16 @@ const handleClick = () => {
 
 .toc-row {
   display: flex;
-  align-items: center;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  padding-right: 8px;
+  align-items: flex-start;
+  padding: 5px 6px 5px 4px;
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
   font-size: 0.82rem;
   color: var(--vp-c-text-2);
-  transition: all 0.15s ease;
-  gap: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  gap: 5px;
+  margin-bottom: 2px;
 }
 
 .toc-row:hover {
@@ -104,11 +103,13 @@ const handleClick = () => {
   background: transparent;
   cursor: pointer;
   color: var(--vp-c-text-3);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   padding: 0;
   width: 14px;
   text-align: center;
-  line-height: 1;
+  line-height: 1.4;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .toggle-caret:hover {
@@ -122,10 +123,12 @@ const handleClick = () => {
 
 .toc-title {
   flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.35;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+  text-align: left;
 }
 
 .toc-page {
@@ -133,6 +136,10 @@ const handleClick = () => {
   color: var(--vp-c-text-3);
   margin-left: 4px;
   flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 1.4;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 
 .toc-children {

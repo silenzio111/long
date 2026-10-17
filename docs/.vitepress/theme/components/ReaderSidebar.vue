@@ -47,11 +47,19 @@
         <span class="toc-empty-hint">正在读取文献章节结构...</span>
       </div>
     </div>
+    <!-- 侧边栏边缘拖拽调宽把手 -->
+    <div 
+      class="sidebar-resizer" 
+      :class="{ 'is-active': isResizing }"
+      @mousedown="onResizerMouseDown"
+      @dblclick="resetSidebarWidth"
+      title="按住左键拖拽调节目录栏宽度，双击恢复默认宽度 (280px)"
+    ></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useReaderState } from '../useReaderState'
 import ReaderTocNode from './ReaderTocNode.vue'
 
@@ -63,6 +71,56 @@ const {
   jumpToPage,
   toggleSidebar
 } = useReaderState()
+
+const isResizing = ref(false)
+const DEFAULT_SIDEBAR_WIDTH = 280
+const MIN_SIDEBAR_WIDTH = 220
+const MAX_SIDEBAR_WIDTH = 550
+
+const applySidebarWidth = (width: number) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--vp-sidebar-width', `${width}px`)
+  }
+}
+
+const onResizerMouseDown = (e: MouseEvent) => {
+  e.preventDefault()
+  isResizing.value = true
+  if (typeof document !== 'undefined') {
+    document.body.classList.add('resizing-sidebar')
+  }
+
+  const onMouseMove = (moveEvent: MouseEvent) => {
+    if (!isResizing.value) return
+    const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, moveEvent.clientX))
+    applySidebarWidth(newWidth)
+  }
+
+  const onMouseUp = (upEvent: MouseEvent) => {
+    isResizing.value = false
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('resizing-sidebar')
+      const finalWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, upEvent.clientX))
+      try {
+        localStorage.setItem('reader_sidebar_width', String(finalWidth))
+      } catch (_) {}
+    }
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+  }
+
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+const resetSidebarWidth = () => {
+  applySidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('reader_sidebar_width', String(DEFAULT_SIDEBAR_WIDTH))
+    } catch (_) {}
+  }
+}
 
 const setTab = (tab: 'toc' | 'books') => {
   activeTab.value = tab
@@ -90,6 +148,18 @@ onMounted(() => {
   if (typeof document !== 'undefined') {
     document.body.classList.add('sidebar-show-toc')
     document.body.classList.toggle('reader-sidebar-collapsed', isSidebarCollapsed.value)
+
+    try {
+      const savedWidth = localStorage.getItem('reader_sidebar_width')
+      const width = savedWidth ? parseInt(savedWidth, 10) : DEFAULT_SIDEBAR_WIDTH
+      if (!isNaN(width) && width >= MIN_SIDEBAR_WIDTH && width <= MAX_SIDEBAR_WIDTH) {
+        applySidebarWidth(width)
+      } else {
+        applySidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+      }
+    } catch (_) {
+      applySidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+    }
   }
 })
 
@@ -103,6 +173,8 @@ onUnmounted(() => {
   if (typeof document !== 'undefined') {
     document.body.classList.remove('sidebar-show-toc')
     document.body.classList.remove('reader-sidebar-collapsed')
+    document.body.classList.remove('resizing-sidebar')
+    document.documentElement.style.removeProperty('--vp-sidebar-width')
   }
 })
 </script>
@@ -192,5 +264,29 @@ onUnmounted(() => {
 .toc-empty-hint {
   font-size: 0.8rem;
   color: var(--vp-c-text-3);
+}
+
+/* 侧边栏边缘拖拽调宽把手 */
+.sidebar-resizer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--vp-sidebar-width) - 3px);
+  width: 6px;
+  cursor: col-resize;
+  z-index: 100;
+  background: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.is-active {
+  background-color: var(--vp-c-brand-1);
+}
+
+@media (max-width: 959px) {
+  .sidebar-resizer {
+    display: none !important;
+  }
 }
 </style>

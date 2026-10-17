@@ -315,6 +315,26 @@ body.lock-page-scroll,
   display: none !important;
 }
 
+/* 阅读器专属页面侧边栏推荐基准宽度 (280px) */
+.reader-full-page {
+  --vp-sidebar-width: 280px;
+}
+
+/* 目录栏拖拽缩放中状态：无延迟跟随光标 */
+body.resizing-sidebar {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
+body.resizing-sidebar .VPSidebar,
+body.resizing-sidebar .VPContent {
+  transition: none !important;
+}
+
+body.reader-sidebar-collapsed .sidebar-resizer {
+  display: none !important;
+}
+
 /* 侧边栏从窗口顶部 0px 开始撑满，支持平滑折叠 */
 .reader-full-page .VPSidebar {
   top: 0 !important;
