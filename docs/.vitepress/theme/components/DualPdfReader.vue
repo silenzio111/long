@@ -26,6 +26,14 @@
           </button>
           <button 
             type="button"
+            :class="['mode-btn', { active: viewMode === 'interleaved' }]" 
+            @click="setMode('interleaved')"
+            :title="t.interleavedTitle"
+          >
+            {{ t.interleavedMode }}
+          </button>
+          <button 
+            type="button"
             :class="['mode-btn', { active: viewMode === 'zh' }]" 
             @click="setMode('zh')"
             :title="t.zhTitle"
@@ -123,6 +131,45 @@
         </div>
       </div>
 
+      <!-- 中英段落纵向交替排布视窗 -->
+      <div v-show="viewMode === 'interleaved'" class="interleaved-wrapper">
+        <div v-if="paragraphSegments.length === 0 && !loading" class="empty-segments">
+          <span>当前页面未提取出独立文本段落，请切换至双栏或单语模式查看</span>
+        </div>
+        <div v-else class="interleaved-list">
+          <div 
+            v-for="(seg, idx) in paragraphSegments" 
+            :key="idx" 
+            class="para-pair-card"
+          >
+            <!-- 英文段落切块 -->
+            <div class="para-unit unit-en">
+              <div class="unit-meta">
+                <span class="unit-badge badge-en">EN · {{ idx + 1 }}</span>
+                <span class="unit-note">{{ t.paraEnBadge }}</span>
+              </div>
+              <div class="slice-canvas-wrapper">
+                <canvas :ref="el => registerSliceCanvas(el, 'en', idx)"></canvas>
+              </div>
+            </div>
+
+            <!-- 分割线 -->
+            <div class="pair-divider"></div>
+
+            <!-- 中文段落切块 -->
+            <div class="para-unit unit-zh">
+              <div class="unit-meta">
+                <span class="unit-badge badge-zh">ZH · {{ idx + 1 }}</span>
+                <span class="unit-note">{{ t.paraZhBadge }}</span>
+              </div>
+              <div class="slice-canvas-wrapper">
+                <canvas :ref="el => registerSliceCanvas(el, 'zh', idx)"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 加载遮罩 -->
       <div v-if="loading" class="reader-loading">
         <div class="spinner"></div>
@@ -170,6 +217,8 @@ const i18n = {
     defaultTitle: '在线双语阅读器',
     dualMode: '中英双栏',
     dualTitle: '双栏中英对照',
+    interleavedMode: '中英交替',
+    interleavedTitle: '段落级纵向中英交替排布（一段英文一段中文）',
     zhMode: '仅中文',
     zhTitle: '仅显示中文译本',
     enMode: '仅英文',
@@ -190,8 +239,10 @@ const i18n = {
     exitFullscreen: '退出全屏',
     enBadge: '英文原版',
     zhBadge: '中文译本',
+    paraEnBadge: '英文原版段落',
+    paraZhBadge: '中文译文段落',
     loadingText: (p: number) => `正在加载第 ${p} 页...`,
-    tipNav: '提示：支持键盘左右方向键 (← / →) 翻页，快捷按“铺满宽度”或“沉浸宽屏”最大化阅读视野',
+    tipNav: '提示：支持键盘左右方向键 (← / →) 翻页，快捷按“中英交替”享受纵向一段中文一段英文的自然阅读体验',
     dlZh: '下载完整中文版',
     dlEn: '下载英文原版'
   },
@@ -199,6 +250,8 @@ const i18n = {
     defaultTitle: 'Online Bilingual Reader',
     dualMode: 'Dual Columns',
     dualTitle: 'Side-by-side bilingual view',
+    interleavedMode: 'Interleaved',
+    interleavedTitle: 'Vertical paragraph-by-paragraph alternating view',
     zhMode: 'Chinese Only',
     zhTitle: 'View Chinese translation only',
     enMode: 'English Only',
@@ -219,8 +272,10 @@ const i18n = {
     exitFullscreen: 'Exit Fullscreen',
     enBadge: 'Original English',
     zhBadge: 'Chinese Translation',
+    paraEnBadge: 'Original English Paragraph',
+    paraZhBadge: 'Chinese Translation Paragraph',
     loadingText: (p: number) => `Loading page ${p}...`,
-    tipNav: 'Tip: Use arrow keys (← / →) to turn pages. Click "Fit Width" or "Zen Wide" to maximize space.',
+    tipNav: 'Tip: Use arrow keys (← / →) to turn pages. Click "Interleaved" for vertical paragraph-by-paragraph reading.',
     dlZh: 'Download Chinese PDF',
     dlEn: 'Download English PDF'
   }
@@ -233,7 +288,22 @@ const viewportRef = ref<HTMLElement | null>(null)
 const enCanvasRef = ref<HTMLCanvasElement | null>(null)
 const zhCanvasRef = ref<HTMLCanvasElement | null>(null)
 
-const viewMode = ref<'dual' | 'zh' | 'en'>('dual')
+interface ParagraphSegment {
+  index: number
+  startY: number
+  zhEndY: number
+  enEndY: number
+}
+
+const paragraphSegments = ref<ParagraphSegment[]>([])
+const sliceCanvases = ref<{ [key: string]: HTMLCanvasElement | null }>({})
+const registerSliceCanvas = (el: any, lang: 'en' | 'zh', index: number) => {
+  if (el) {
+    sliceCanvases.value[`${lang}_${index}`] = el as HTMLCanvasElement
+  }
+}
+
+const viewMode = ref<'dual' | 'interleaved' | 'zh' | 'en'>('dual')
 const currentPage = ref(props.initialPage || 1)
 const inputPage = ref(props.initialPage || 1)
 const totalEnPages = ref(0)
@@ -273,6 +343,10 @@ const computeFitScale = () => {
     // 两个栏位：减去外边距与中缝间隙 (约 36px)，除以 2，最大化水平可视面积
     const colWidth = (viewportWidth - 36) / 2
     return Math.max(0.65, Math.min(2.6, parseFloat((colWidth / basePageWidth).toFixed(2))))
+  } else if (viewMode.value === 'interleaved') {
+    // 中英交替纵向单列卡片：居中铺展，充分利用宽屏
+    const targetWidth = Math.min(viewportWidth - 36, 1020)
+    return Math.max(0.8, Math.min(2.5, parseFloat((targetWidth / basePageWidth).toFixed(2))))
   } else {
     // 单栏模式：充分铺满视口宽度，消除人为设定的 1150px 限制
     const targetWidth = Math.max(300, viewportWidth - 24)
@@ -360,6 +434,174 @@ const renderSinglePage = async (doc: any, pageNum: number, canvas: HTMLCanvasEle
   await renderTask.promise
 }
 
+const renderInterleavedPage = async () => {
+  if (!enPdfDoc || !zhPdfDoc) return
+
+  const [enPage, zhPage] = await Promise.all([
+    enPdfDoc.getPage(currentPage.value),
+    zhPdfDoc.getPage(currentPage.value)
+  ])
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const vpEn = enPage.getViewport({ scale: scale.value })
+  const vpZh = zhPage.getViewport({ scale: scale.value })
+
+  // 1. 离线渲染完整英文页与中文页到内存画布
+  const offEn = document.createElement('canvas')
+  offEn.width = Math.floor(vpEn.width * dpr)
+  offEn.height = Math.floor(vpEn.height * dpr)
+  const ctxEn = offEn.getContext('2d', { alpha: false })!
+  ctxEn.imageSmoothingEnabled = true
+  ctxEn.imageSmoothingQuality = 'high'
+  ctxEn.setTransform(dpr, 0, 0, dpr, 0, 0)
+  const taskEn = enPage.render({ canvasContext: ctxEn, viewport: vpEn })
+
+  const offZh = document.createElement('canvas')
+  offZh.width = Math.floor(vpZh.width * dpr)
+  offZh.height = Math.floor(vpZh.height * dpr)
+  const ctxZh = offZh.getContext('2d', { alpha: false })!
+  ctxZh.imageSmoothingEnabled = true
+  ctxZh.imageSmoothingQuality = 'high'
+  ctxZh.setTransform(dpr, 0, 0, dpr, 0, 0)
+  const taskZh = zhPage.render({ canvasContext: ctxZh, viewport: vpZh })
+
+  currentRenderTasks.push(taskEn, taskZh)
+
+  // 2. 提取文本内容以计算段落起止坐标（基准 scale=1.0）
+  const [zhTc, enTc] = await Promise.all([
+    zhPage.getTextContent(),
+    enPage.getTextContent(),
+    taskEn.promise,
+    taskZh.promise
+  ])
+
+  const baseVpZh = zhPage.getViewport({ scale: 1.0 })
+  const baseVpEn = enPage.getViewport({ scale: 1.0 })
+
+  const mapItems = (tc: any, baseVp: any) => {
+    return tc.items.map((it: any) => {
+      const [vx, vy] = baseVp.convertToViewportPoint(it.transform[4], it.transform[5])
+      const h = it.height || 10
+      const w = it.width || 0
+      return {
+        str: it.str,
+        x0: vx,
+        x1: vx + w,
+        topY: vy - h,
+        bottomY: vy
+      }
+    }).filter((it: any) => it.str && it.str.trim() && it.topY > 40 && it.bottomY < baseVp.height - 30)
+  }
+
+  const zhItems = mapItems(zhTc, baseVpZh)
+  const enItems = mapItems(enTc, baseVpEn)
+  zhItems.sort((a: any, b: any) => a.topY - b.topY)
+  enItems.sort((a: any, b: any) => a.topY - b.topY)
+
+  let segments: ParagraphSegment[] = []
+
+  if (zhItems.length === 0) {
+    // 页面无文本（例如封面或纯插图页），整页作为单个切片呈现
+    segments = [{
+      index: 0,
+      startY: 42,
+      zhEndY: baseVpZh.height - 35,
+      enEndY: baseVpEn.height - 35
+    }]
+  } else {
+    // 按 Y 轴将中文 items 聚类为文本行
+    const lines: { topY: number; bottomY: number; text: string }[] = []
+    for (const it of zhItems) {
+      const lastLine = lines[lines.length - 1]
+      if (!lastLine || Math.abs(it.topY - lastLine.topY) > 3.5) {
+        lines.push({ topY: it.topY, bottomY: it.bottomY, text: it.str })
+      } else {
+        lastLine.text += it.str
+        if (it.bottomY > lastLine.bottomY) lastLine.bottomY = it.bottomY
+      }
+    }
+
+    // 检测段落间隔（行间距突变处即为段落切分点）
+    const avgLineHeight = lines.length > 1 
+      ? (lines[lines.length - 1].topY - lines[0].topY) / (lines.length - 1) 
+      : 14
+    const breakThreshold = Math.max(14, avgLineHeight * 1.35)
+
+    const rawParas: { startY: number; endY: number }[] = []
+    let curP = { startY: lines[0].topY, endY: lines[0].bottomY }
+    for (let i = 1; i < lines.length; i++) {
+      const gap = lines[i].topY - lines[i - 1].bottomY
+      if (gap > 6 || (lines[i].topY - lines[i - 1].topY) > breakThreshold) {
+        rawParas.push(curP)
+        curP = { startY: lines[i].topY, endY: lines[i].bottomY }
+      } else {
+        curP.endY = Math.max(curP.endY, lines[i].bottomY)
+      }
+    }
+    rawParas.push(curP)
+
+    // 中英段落起始严格对齐，结束位置分别按中英文各自实际范围裁切
+    for (let i = 0; i < rawParas.length; i++) {
+      const p = rawParas[i]
+      const nextStart = i + 1 < rawParas.length ? rawParas[i + 1].startY : baseVpZh.height - 35
+
+      const matchingEn = enItems.filter((it: any) => it.topY >= p.startY - 8 && it.topY < nextStart - 4)
+      const enStartY = matchingEn.length > 0 ? Math.min(...matchingEn.map((it: any) => it.topY)) : p.startY
+      const enEndY = matchingEn.length > 0 ? Math.max(...matchingEn.map((it: any) => it.bottomY)) : p.endY
+
+      // 起始位置对齐
+      const alignedStartY = Math.min(p.startY, enStartY)
+
+      segments.push({
+        index: i,
+        startY: alignedStartY,
+        zhEndY: p.endY,
+        enEndY: enEndY
+      })
+    }
+  }
+
+  sliceCanvases.value = {}
+  paragraphSegments.value = segments
+  await nextTick()
+
+  // 3. 将各段落裁剪并绘制到对应 slice canvas 上
+  const padY = 5
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    const enEl = sliceCanvases.value[`en_${i}`]
+    const zhEl = sliceCanvases.value[`zh_${i}`]
+
+    if (enEl) {
+      const srcY = Math.max(0, seg.startY - padY) * scale.value * dpr
+      const srcH = Math.max(20, (seg.enEndY - seg.startY + 2 * padY)) * scale.value * dpr
+      const srcW = offEn.width
+      enEl.width = Math.floor(srcW)
+      enEl.height = Math.floor(srcH)
+      enEl.style.width = '100%'
+      enEl.style.height = `${Math.floor(srcH / dpr)}px`
+      const ctx = enEl.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(offEn, 0, Math.floor(srcY), Math.floor(srcW), Math.floor(srcH), 0, 0, Math.floor(srcW), Math.floor(srcH))
+      }
+    }
+
+    if (zhEl) {
+      const srcY = Math.max(0, seg.startY - padY) * scale.value * dpr
+      const srcH = Math.max(20, (seg.zhEndY - seg.startY + 2 * padY)) * scale.value * dpr
+      const srcW = offZh.width
+      zhEl.width = Math.floor(srcW)
+      zhEl.height = Math.floor(srcH)
+      zhEl.style.width = '100%'
+      zhEl.style.height = `${Math.floor(srcH / dpr)}px`
+      const ctx = zhEl.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(offZh, 0, Math.floor(srcY), Math.floor(srcW), Math.floor(srcH), 0, 0, Math.floor(srcW), Math.floor(srcH))
+      }
+    }
+  }
+}
+
 const renderCurrentPage = async () => {
   if (typeof window === 'undefined') return
   cancelCurrentTasks()
@@ -367,14 +609,18 @@ const renderCurrentPage = async () => {
   errorMessage.value = ''
 
   try {
-    const promises: Promise<any>[] = []
-    if ((viewMode.value === 'dual' || viewMode.value === 'en') && enPdfDoc) {
-      promises.push(renderSinglePage(enPdfDoc, currentPage.value, enCanvasRef.value))
+    if (viewMode.value === 'interleaved') {
+      await renderInterleavedPage()
+    } else {
+      const promises: Promise<any>[] = []
+      if ((viewMode.value === 'dual' || viewMode.value === 'en') && enPdfDoc) {
+        promises.push(renderSinglePage(enPdfDoc, currentPage.value, enCanvasRef.value))
+      }
+      if ((viewMode.value === 'dual' || viewMode.value === 'zh') && zhPdfDoc) {
+        promises.push(renderSinglePage(zhPdfDoc, currentPage.value, zhCanvasRef.value))
+      }
+      await Promise.all(promises)
     }
-    if ((viewMode.value === 'dual' || viewMode.value === 'zh') && zhPdfDoc) {
-      promises.push(renderSinglePage(zhPdfDoc, currentPage.value, zhCanvasRef.value))
-    }
-    await Promise.all(promises)
   } catch (err: any) {
     if (err?.name !== 'RenderingCancelledException') {
       console.error('页面渲染错误:', err)
@@ -411,7 +657,7 @@ const onPageInputChange = () => {
   renderCurrentPage()
 }
 
-const setMode = (mode: 'dual' | 'zh' | 'en') => {
+const setMode = (mode: 'dual' | 'interleaved' | 'zh' | 'en') => {
   viewMode.value = mode
   scale.value = computeFitScale()
   renderCurrentPage()
@@ -774,5 +1020,107 @@ watch(() => [props.enSrc, props.zhSrc], () => {
     flex-direction: column;
     align-items: center;
   }
+}
+
+/* =========================================
+   段落级纵向中英交替卡片排版样式
+   ========================================= */
+.interleaved-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  gap: 1.2rem;
+  padding: 0.5rem 0.2rem 2.5rem 0.2rem;
+}
+
+.interleaved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: 100%;
+}
+
+.para-pair-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--vp-c-bg);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+  padding: 1.1rem 1.3rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.para-pair-card:hover {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.08);
+}
+
+.para-unit {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.unit-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.unit-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--vp-c-bg-mute);
+  color: var(--vp-c-text-2);
+}
+
+.unit-badge.badge-zh {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+
+.unit-note {
+  font-size: 0.75rem;
+  color: var(--vp-c-text-3);
+}
+
+.slice-canvas-wrapper {
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 3px 0;
+  width: 100%;
+}
+
+.slice-canvas-wrapper canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.pair-divider {
+  height: 1px;
+  border-top: 1px dashed var(--vp-c-divider);
+  margin: 0.2rem 0;
+  width: 100%;
+}
+
+.empty-segments {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--vp-c-text-3);
+  font-size: 0.9rem;
 }
 </style>
