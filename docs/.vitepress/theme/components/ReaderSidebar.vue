@@ -1,6 +1,6 @@
 <template>
   <div class="reader-sidebar-ctrl">
-    <!-- 顶部模式切换与折叠控制栏 -->
+    <!-- 顶部模式切换、控制栏呼出与折叠控制栏 -->
     <div class="sidebar-header">
       <div class="tab-btn-group">
         <button 
@@ -9,7 +9,7 @@
           @click="setTab('toc')"
           title="切换至当前书籍目录"
         >
-          📑 本书目录
+          📑 目录
         </button>
         <button 
           type="button" 
@@ -17,13 +17,36 @@
           @click="setTab('books')"
           title="切换至文库书籍列表"
         >
-          📚 书籍列表
+          📚 书籍
         </button>
       </div>
 
+      <!-- 控制栏快捷开关：置于左侧栏，杜绝遮挡右侧内容 -->
       <button 
         type="button" 
-        class="btn-collapse" 
+        class="sidebar-action-btn btn-toolbar-toggle" 
+        :class="{ active: isToolbarVisible }"
+        @click="toggleToolbar" 
+        :title="isToolbarVisible ? '收起右侧顶部控制栏' : '展开右侧顶部控制栏（模式/翻页/缩放）'"
+      >
+        🛠️ 控制栏
+      </button>
+
+      <!-- 夜间反色快捷开关 -->
+      <button 
+        type="button" 
+        class="sidebar-action-btn btn-invert-toggle" 
+        :class="{ active: isInverted }"
+        @click="toggleInvert" 
+        :title="isInverted ? '切换为日间白底明亮模式' : '开启夜间反色暗黑模式'"
+      >
+        {{ isInverted ? '☀️' : '🌙' }}
+      </button>
+
+      <!-- 侧边栏折叠按钮 -->
+      <button 
+        type="button" 
+        class="sidebar-action-btn btn-collapse" 
         @click="collapseSidebar" 
         title="收起左侧栏，最大化阅读空间"
       >
@@ -67,9 +90,13 @@ const {
   outline,
   activeTab,
   isSidebarCollapsed,
+  isToolbarVisible,
+  isInverted,
   currentPage,
   jumpToPage,
-  toggleSidebar
+  toggleSidebar,
+  toggleToolbar,
+  toggleInvert
 } = useReaderState()
 
 const isResizing = ref(false)
@@ -193,7 +220,7 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 0.5rem 0.2rem;
   border-bottom: 1px solid var(--vp-c-divider);
-  gap: 0.4rem;
+  gap: 0.3rem;
 }
 
 .tab-btn-group {
@@ -202,14 +229,15 @@ onUnmounted(() => {
   border-radius: 6px;
   padding: 2px;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .tab-btn {
   flex: 1 1 50%;
   border: none;
   background: transparent;
-  padding: 4px 6px;
-  font-size: 0.78rem;
+  padding: 4px 4px;
+  font-size: 0.76rem;
   border-radius: 4px;
   cursor: pointer;
   color: var(--vp-c-text-2);
@@ -225,22 +253,45 @@ onUnmounted(() => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.btn-collapse {
-  padding: 4px 8px;
+.sidebar-action-btn {
+  padding: 4px 6px;
   border: 1px solid var(--vp-c-divider);
   background: var(--vp-c-bg);
   color: var(--vp-c-text-2);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
+  font-weight: 500;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
 }
 
-.btn-collapse:hover {
+.sidebar-action-btn:hover {
   background: var(--vp-c-bg-mute);
   color: var(--vp-c-brand-1);
   border-color: var(--vp-c-brand-1);
+}
+
+.sidebar-action-btn.active {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+
+.btn-collapse {
+  padding: 4px 6px;
+  font-size: 0.72rem;
+}
+
+.btn-invert-toggle {
+  padding: 4px 5px;
+  font-size: 0.76rem;
 }
 
 .toc-view-container {

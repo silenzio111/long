@@ -8,11 +8,9 @@
       'is-sidebar-collapsed': isSidebarCollapsed
     }"
   >
-    <!-- 悬浮快捷控制触发器：默认纯粹极简，点击或悬停呼出对应面板 -->
-    <div class="floating-reader-triggers">
-      <!-- 重新呼出侧边栏目录按钮（仅在侧边栏折叠时显示） -->
+    <!-- 当侧边栏折叠收起时，在左上方提供轻巧的快捷浮动入口（展开控制栏时自动隐藏，避免任何遮挡） -->
+    <div v-if="isSidebarCollapsed && !isToolbarVisible" class="floating-left-triggers">
       <button 
-        v-if="isSidebarCollapsed" 
         type="button" 
         class="float-trigger-btn btn-float-sidebar" 
         @click="toggleSidebar" 
@@ -21,18 +19,18 @@
         📑 目录
       </button>
 
-      <!-- 呼出控制工具栏按钮 -->
       <button 
         type="button" 
         class="float-trigger-btn btn-float-toolbar" 
-        :class="{ active: isToolbarVisible }"
         @click="toggleToolbar" 
-        title="切换控制工具栏（中英模式/翻页/缩放）"
+        title="展开顶部控制栏（模式/翻页/缩放）"
       >
         🛠️ 控制栏
       </button>
+    </div>
 
-      <!-- 夜间反色护眼切换按钮 -->
+    <!-- 右侧夜间反色切换浮钮（仅在控制栏隐藏时显示，展开控制栏时自动隐藏，杜绝遮挡右侧操作元素） -->
+    <div v-if="!isToolbarVisible" class="floating-reader-triggers">
       <button 
         type="button" 
         class="float-trigger-btn btn-float-invert" 
@@ -625,11 +623,14 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   opacity: 1;
 }
 
-.btn-float-sidebar {
+.floating-left-triggers {
   position: fixed;
   top: 10px;
   left: 12px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* 控制栏：由悬浮按键呼出 */
