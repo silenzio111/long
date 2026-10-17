@@ -1,6 +1,6 @@
 <template>
   <div class="reader-sidebar-ctrl">
-    <!-- 顶部模式切换、控制栏呼出与折叠控制栏 -->
+    <!-- 顶部模式切换与折叠控制栏 -->
     <div class="sidebar-header">
       <div class="tab-btn-group">
         <button 
@@ -9,7 +9,7 @@
           @click="setTab('toc')"
           title="切换至当前书籍目录"
         >
-          📑 目录
+          📑 本书目录
         </button>
         <button 
           type="button" 
@@ -17,40 +17,45 @@
           @click="setTab('books')"
           title="切换至文库书籍列表"
         >
-          📚 书籍
+          📚 书籍列表
         </button>
       </div>
-
-      <!-- 控制栏快捷开关：置于左侧栏，杜绝遮挡右侧内容 -->
-      <button 
-        type="button" 
-        class="sidebar-action-btn btn-toolbar-toggle" 
-        :class="{ active: isToolbarVisible }"
-        @click="toggleToolbar" 
-        :title="isToolbarVisible ? '收起右侧顶部控制栏' : '展开右侧顶部控制栏（模式/翻页/缩放）'"
-      >
-        🛠️ 控制栏
-      </button>
-
-      <!-- 夜间反色快捷开关 -->
-      <button 
-        type="button" 
-        class="sidebar-action-btn btn-invert-toggle" 
-        :class="{ active: isInverted }"
-        @click="toggleInvert" 
-        :title="isInverted ? '切换为日间白底明亮模式' : '开启夜间反色暗黑模式'"
-      >
-        {{ isInverted ? '☀️' : '🌙' }}
-      </button>
 
       <!-- 侧边栏折叠按钮 -->
       <button 
         type="button" 
-        class="sidebar-action-btn btn-collapse" 
+        class="btn-collapse" 
         @click="collapseSidebar" 
         title="收起左侧栏，最大化阅读空间"
       >
         ◀
+      </button>
+    </div>
+
+    <!-- 专属操作工具条：控制栏呼出与夜间反色切换，醒目易见，杜绝右侧遮挡 -->
+    <div class="sidebar-action-bar">
+      <!-- 控制栏快捷开关 -->
+      <button 
+        type="button" 
+        class="action-bar-btn btn-toolbar-toggle" 
+        :class="{ active: isToolbarVisible }"
+        @click="toggleToolbar" 
+        :title="isToolbarVisible ? '收起右侧顶部控制栏' : '展开右侧顶部控制栏（模式/翻页/缩放）'"
+      >
+        <span class="btn-icon">🛠️</span>
+        <span class="btn-text">{{ isToolbarVisible ? '收起控制栏' : '展开控制栏' }}</span>
+      </button>
+
+      <!-- 夜间反色护眼开关：醒目中文标签与状态高亮 -->
+      <button 
+        type="button" 
+        class="action-bar-btn btn-invert-toggle" 
+        :class="{ active: isInverted }"
+        @click="toggleInvert" 
+        :title="isInverted ? '当前为夜间反色模式，点击切换为日间白底明亮模式' : '当前为日间白底模式，点击开启夜间反色暗黑模式'"
+      >
+        <span class="btn-icon">{{ isInverted ? '☀️' : '🌙' }}</span>
+        <span class="btn-text">{{ isInverted ? '白底明亮' : '夜间反色' }}</span>
       </button>
     </div>
 
@@ -218,9 +223,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.2rem;
-  border-bottom: 1px solid var(--vp-c-divider);
-  gap: 0.3rem;
+  padding: 0.5rem 0.2rem 0.35rem 0.2rem;
+  gap: 0.4rem;
 }
 
 .tab-btn-group {
@@ -229,15 +233,14 @@ onUnmounted(() => {
   border-radius: 6px;
   padding: 2px;
   flex: 1 1 auto;
-  min-width: 0;
 }
 
 .tab-btn {
   flex: 1 1 50%;
   border: none;
   background: transparent;
-  padding: 4px 4px;
-  font-size: 0.76rem;
+  padding: 4px 6px;
+  font-size: 0.78rem;
   border-radius: 4px;
   cursor: pointer;
   color: var(--vp-c-text-2);
@@ -253,45 +256,91 @@ onUnmounted(() => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.sidebar-action-btn {
-  padding: 4px 6px;
+.btn-collapse {
+  padding: 4px 8px;
   border: 1px solid var(--vp-c-divider);
   background: var(--vp-c-bg);
   color: var(--vp-c-text-2);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 500;
+  font-size: 0.78rem;
   transition: all 0.15s ease;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  white-space: nowrap;
 }
 
-.sidebar-action-btn:hover {
+.btn-collapse:hover {
   background: var(--vp-c-bg-mute);
   color: var(--vp-c-brand-1);
   border-color: var(--vp-c-brand-1);
 }
 
-.sidebar-action-btn.active {
+/* 侧边栏专属快捷操作条：卡片式大按钮，清晰明了 */
+.sidebar-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.2rem 0.5rem 0.2rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.action-bar-btn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--vp-c-bg-mute);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.action-bar-btn:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg);
+  transform: translateY(-1px);
+}
+
+.action-bar-btn.btn-toolbar-toggle.active {
   background: var(--vp-c-brand-soft);
   color: var(--vp-c-brand-1);
   border-color: var(--vp-c-brand-1);
   font-weight: 600;
 }
 
-.btn-collapse {
-  padding: 4px 6px;
-  font-size: 0.72rem;
+.action-bar-btn.btn-invert-toggle {
+  background: var(--vp-c-bg-alt);
+  color: var(--vp-c-text-1);
+  border-color: var(--vp-c-divider);
 }
 
-.btn-invert-toggle {
-  padding: 4px 5px;
-  font-size: 0.76rem;
+.action-bar-btn.btn-invert-toggle:hover {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.action-bar-btn.btn-invert-toggle.active {
+  background: #1e293b;
+  color: #fbbf24;
+  border-color: #f59e0b;
+  font-weight: 600;
+  box-shadow: 0 1px 6px rgba(245, 158, 11, 0.25);
+}
+
+.btn-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.btn-text {
+  white-space: nowrap;
 }
 
 .toc-view-container {

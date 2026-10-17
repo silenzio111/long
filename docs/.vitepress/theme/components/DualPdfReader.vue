@@ -29,19 +29,6 @@
       </button>
     </div>
 
-    <!-- 右侧夜间反色切换浮钮（仅在控制栏隐藏时显示，展开控制栏时自动隐藏，杜绝遮挡右侧操作元素） -->
-    <div v-if="!isToolbarVisible" class="floating-reader-triggers">
-      <button 
-        type="button" 
-        class="float-trigger-btn btn-float-invert" 
-        :class="{ active: isInverted }"
-        @click="toggleInvert" 
-        :title="isInverted ? '切换为日间白底明亮模式' : '开启夜间反色暗黑模式'"
-      >
-        {{ isInverted ? '☀️ 明亮' : '🌙 反色' }}
-      </button>
-    </div>
-
     <!-- 顶部控制工具栏：默认完全隐藏，通过悬浮按钮呼出 -->
     <transition name="toolbar-slide">
       <div v-show="isToolbarVisible" class="reader-toolbar">
@@ -264,9 +251,23 @@ const computedPageWidth = computed(() => Math.floor(basePageWidth.value * scale.
 const computedPageHeight = computed(() => Math.floor(basePageHeight.value * scale.value))
 const rowHeight = computed(() => computedPageHeight.value + 24)
 
-// 视口动态虚拟窗口：只实例化当前页及相邻的前后 1 页（共 2~3 页）
-const startPage = computed(() => Math.max(1, currentPage.value - 1))
-const endPage = computed(() => Math.min(maxPages.value, currentPage.value + 1))
+// 跟踪视口真实滚动位置与视口高度（初始化与每次滚动时同步）
+const viewportScrollTop = ref(0)
+const viewportHeight = ref(800)
+
+// 视口动态虚拟窗口：严格基于当前视口滚动坐标计算可见范围，前后各缓冲 2 页，杜绝页面缺失
+const startPage = computed(() => {
+  const rh = rowHeight.value || 1
+  const topPage = Math.floor(viewportScrollTop.value / rh) + 1
+  return Math.max(1, topPage - 2)
+})
+
+const endPage = computed(() => {
+  const rh = rowHeight.value || 1
+  const bottomPage = Math.ceil((viewportScrollTop.value + viewportHeight.value) / rh) + 1
+  return Math.min(maxPages.value, bottomPage + 2)
+})
+
 const visiblePages = computed(() => {
   if (!enPdfDoc.value && !zhPdfDoc.value) return []
   const list: number[] = []
@@ -277,7 +278,7 @@ const visiblePages = computed(() => {
 })
 
 const topSpacerHeight = computed(() => (startPage.value - 1) * rowHeight.value)
-const bottomSpacerHeight = computed(() => (maxPages.value - endPage.value) * rowHeight.value)
+const bottomSpacerHeight = computed(() => Math.max(0, (maxPages.value - endPage.value) * rowHeight.value))
 const totalScrollHeight = computed(() => maxPages.value * rowHeight.value)
 
 const computeFitScale = () => {
@@ -292,16 +293,61 @@ const computeFitScale = () => {
   }
 }
 
-const autoFitWidth = () => {
-  isAutoScaled.value = true
-  scale.value = computeFitScale()
-}
-
 let isProgrammaticScrolling = false
 
+// 统一的缩放设置函数：在缩放过程中绝对锁定当前视口相对阅读进度，彻底根除缩放空白与页面消失 Bug
+const setScale = (newScale: number) => {
+  const clampedScale = Math.max(0.45, Math.min(2.6, parseFloat(newScale.toFixed(2))))
+  if (Math.abs(clampedScale - scale.value) < 0.005) return
+
+  if (!viewportRef.value) {
+    scale.value = clampedScale
+    return
+  }
+
+  const oldRh = rowHeight.value || 1
+  const currentScrollTop = viewportRef.value.scrollTop
+  const viewHeight = viewportRef.value.clientHeight || 800
+  // 保持当前视口中心线所对准的阅读位置在缩放后保持一致
+  const centerCoord = currentScrollTop + viewHeight / 2
+  const centerRatio = centerCoord / oldRh
+
+  scale.value = clampedScale
+
+  nextTick(() => {
+    if (viewportRef.value) {
+      isProgrammaticScrolling = true
+      const newRh = rowHeight.value || 1
+      const newScrollTop = Math.max(0, Math.round(centerRatio * newRh - viewHeight / 2))
+      viewportRef.value.scrollTop = newScrollTop
+      viewportScrollTop.value = newScrollTop
+      viewportHeight.value = viewHeight
+
+      const cur = Math.min(maxPages.value, Math.max(1, Math.round(newScrollTop / newRh) + 1))
+      currentPage.value = cur
+      inputPage.value = cur
+      stateCurrentPage.value = cur
+
+      setTimeout(() => {
+        isProgrammaticScrolling = false
+      }, 60)
+    }
+  })
+}
+
+const autoFitWidth = () => {
+  isAutoScaled.value = true
+  setScale(computeFitScale())
+}
+
 const onViewportScroll = () => {
-  if (!viewportRef.value || isProgrammaticScrolling) return
+  if (!viewportRef.value) return
   const scrollTop = viewportRef.value.scrollTop
+  viewportScrollTop.value = scrollTop
+  viewportHeight.value = viewportRef.value.clientHeight || 800
+
+  if (isProgrammaticScrolling) return
+
   const rh = rowHeight.value
   if (rh <= 0) return
 
@@ -322,6 +368,7 @@ const scrollToPage = (p: number, smooth = true) => {
   currentPage.value = p
   inputPage.value = p
   stateCurrentPage.value = p
+  viewportScrollTop.value = targetTop
 
   viewportRef.value.scrollTo({
     top: targetTop,
@@ -330,6 +377,9 @@ const scrollToPage = (p: number, smooth = true) => {
 
   setTimeout(() => {
     isProgrammaticScrolling = false
+    if (viewportRef.value) {
+      viewportScrollTop.value = viewportRef.value.scrollTop
+    }
   }, smooth ? 350 : 50)
 }
 
@@ -343,27 +393,23 @@ const onPageInputChange = () => {
 
 const setMode = (mode: 'dual' | 'zh' | 'en') => {
   viewMode.value = mode
-  scale.value = computeFitScale()
+  setScale(computeFitScale())
 }
 
 const zoomIn = () => {
   isAutoScaled.value = false
-  if (scale.value < 2.6) {
-    scale.value = parseFloat((scale.value + 0.15).toFixed(2))
-  }
+  setScale(scale.value + 0.15)
 }
 
 const zoomOut = () => {
   isAutoScaled.value = false
-  if (scale.value > 0.45) {
-    scale.value = parseFloat((scale.value - 0.15).toFixed(2))
-  }
+  setScale(scale.value - 0.15)
 }
 
 const toggleZenMode = () => {
   isZenMode.value = !isZenMode.value
   nextTick(() => {
-    scale.value = computeFitScale()
+    setScale(computeFitScale())
   })
 }
 
@@ -378,12 +424,18 @@ const toggleFullscreen = () => {
 
 const onFullscreenChange = () => {
   isFullscreen.value = !!document.fullscreenElement
-  scale.value = computeFitScale()
+  if (isAutoScaled.value) {
+    setScale(computeFitScale())
+  }
 }
 
 const handleResize = () => {
+  if (viewportRef.value) {
+    viewportHeight.value = viewportRef.value.clientHeight || 800
+    viewportScrollTop.value = viewportRef.value.scrollTop
+  }
   if (isAutoScaled.value) {
-    scale.value = computeFitScale()
+    setScale(computeFitScale())
   }
 }
 
@@ -503,7 +555,7 @@ const loadPdfs = async () => {
       if (isAutoScaled.value && viewportRef.value) {
         const newScale = computeFitScale()
         if (Math.abs(newScale - scale.value) > 0.02) {
-          scale.value = newScale
+          setScale(newScale)
         }
       }
     }, 120)
@@ -523,6 +575,12 @@ onMounted(() => {
   setJumpCallback((p) => scrollToPage(p))
   stateCurrentPage.value = currentPage.value
   loadPdfs()
+  nextTick(() => {
+    if (viewportRef.value) {
+      viewportHeight.value = viewportRef.value.clientHeight || 800
+      viewportScrollTop.value = viewportRef.value.scrollTop
+    }
+  })
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', handleResize)
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -577,16 +635,15 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   height: 100vh;
 }
 
-/* 悬浮快捷控制触发器 */
-.floating-reader-triggers {
-  position: absolute;
+/* 悬浮快捷控制触发器（仅在侧边栏折叠时呈现于左上角） */
+.floating-left-triggers {
+  position: fixed;
   top: 10px;
-  right: 14px;
-  z-index: 40;
+  left: 12px;
+  z-index: 100;
   display: flex;
   align-items: center;
   gap: 8px;
-  pointer-events: none;
 }
 
 .float-trigger-btn {
@@ -614,23 +671,6 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   border-color: var(--vp-c-brand-1);
   color: var(--vp-c-brand-1);
   transform: translateY(-1px);
-}
-
-.float-trigger-btn.btn-float-invert.active {
-  background: #1e293b;
-  color: #fbbf24;
-  border-color: #f59e0b;
-  opacity: 1;
-}
-
-.floating-left-triggers {
-  position: fixed;
-  top: 10px;
-  left: 12px;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* 控制栏：由悬浮按键呼出 */
