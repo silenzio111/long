@@ -1,5 +1,8 @@
 ---
 title: "统计学习导论：基于 Python 实战 (ISLP) 在线双语阅读"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # 统计学习导论：基于 Python 实战 (ISLP)

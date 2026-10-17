@@ -1,5 +1,8 @@
 ---
 title: "Introduction to Derivative-Free Optimization - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # Introduction to Derivative-Free Optimization

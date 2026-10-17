@@ -1,5 +1,8 @@
 ---
 title: "MIT 优化方法导论 (Optimization Methods) 在线双语阅读"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # MIT 优化方法导论 (Optimization Methods)

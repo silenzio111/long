@@ -1,5 +1,8 @@
 ---
 title: "无导数优化导论 (Introduction to Derivative-Free Optimization) 在线双语阅读"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # 无导数优化导论 (Introduction to Derivative-Free Optimization)

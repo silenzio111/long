@@ -1,5 +1,8 @@
 ---
 title: "ITBook Engineering & Systems Practical Collection - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # ITBook Engineering & Systems Practical Collection

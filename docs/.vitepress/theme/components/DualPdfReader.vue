@@ -1,5 +1,12 @@
 <template>
-  <div ref="containerRef" class="dual-pdf-reader" :class="{ 'is-fullscreen': isFullscreen }">
+  <div 
+    ref="containerRef" 
+    class="dual-pdf-reader" 
+    :class="{ 
+      'is-zen-mode': isZenMode, 
+      'is-fullscreen': isFullscreen 
+    }"
+  >
     <!-- 顶部控制工具栏 -->
     <div class="reader-toolbar">
       <div class="toolbar-section title-section">
@@ -73,15 +80,24 @@
 
       <!-- 缩放与全屏工具 -->
       <div class="toolbar-section tool-section">
-        <button type="button" class="tool-btn" @click="zoomOut" :title="t.zoomOut" :disabled="scale <= 0.6">
+        <button type="button" class="tool-btn" @click="autoFitWidth" :title="t.fitWidth">
+          {{ t.fitWidthBtn }}
+        </button>
+        <button type="button" class="tool-btn" @click="zoomOut" :title="t.zoomOut" :disabled="scale <= 0.5">
           －
         </button>
         <span class="zoom-value">{{ Math.round(scale * 100) }}%</span>
-        <button type="button" class="tool-btn" @click="zoomIn" :title="t.zoomIn" :disabled="scale >= 2.0">
+        <button type="button" class="tool-btn" @click="zoomIn" :title="t.zoomIn" :disabled="scale >= 2.5">
           ＋
         </button>
-        <button type="button" class="tool-btn" @click="resetZoom" :title="t.resetZoom">
-          100%
+        <button 
+          type="button" 
+          class="tool-btn btn-zen" 
+          :class="{ active: isZenMode }"
+          @click="toggleZenMode" 
+          :title="isZenMode ? t.exitZen : t.enterZen"
+        >
+          {{ isZenMode ? t.exitZenBtn : t.enterZenBtn }}
         </button>
         <button type="button" class="tool-btn" @click="toggleFullscreen" :title="isFullscreen ? t.exitFullscreen : t.fullscreen">
           {{ isFullscreen ? t.exitFullscreen : t.fullscreen }}
@@ -89,8 +105,8 @@
       </div>
     </div>
 
-    <!-- 主展示区 -->
-    <div class="reader-viewport" :class="[`mode-${viewMode}`]">
+    <!-- 主展示视窗 -->
+    <div ref="viewportRef" class="reader-viewport" :class="[`mode-${viewMode}`]">
       <!-- 英文栏 -->
       <div v-show="viewMode === 'dual' || viewMode === 'en'" class="canvas-wrapper en-wrapper">
         <div class="column-badge">{{ t.enBadge }} (Page {{ currentPage }})</div>
@@ -125,21 +141,19 @@
       <div class="download-links">
         <a v-if="zhSrc" :href="zhSrc" download class="dl-link" target="_blank">{{ t.dlZh }}</a>
         <a v-if="enSrc" :href="enSrc" download class="dl-link" target="_blank">{{ t.dlEn }}</a>
-        <a v-if="downloadDual" :href="downloadDual" download class="dl-link" target="_blank">{{ t.dlDual }}</a>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute } from 'vitepress'
 
 const props = defineProps<{
   title?: string
   enSrc: string
   zhSrc: string
-  downloadDual?: string
   initialPage?: number
   lang?: 'zh' | 'en'
 }>()
@@ -164,18 +178,22 @@ const i18n = {
     prevTitle: '上一页 (← 快捷键)',
     next: '下一页',
     nextTitle: '下一页 (→ 快捷键)',
+    fitWidth: '自动充满宽度',
+    fitWidthBtn: '铺满宽度',
     zoomIn: '放大',
     zoomOut: '缩小',
-    resetZoom: '重置缩放',
-    fullscreen: '全屏',
+    enterZen: '沉浸宽屏阅读（隐去页面侧边栏）',
+    enterZenBtn: '沉浸宽屏',
+    exitZen: '退出沉浸宽屏',
+    exitZenBtn: '退出宽屏',
+    fullscreen: '系统全屏',
     exitFullscreen: '退出全屏',
     enBadge: '英文原版',
     zhBadge: '中文译本',
     loadingText: (p: number) => `正在加载第 ${p} 页...`,
-    tipNav: '提示：支持使用键盘左右方向键 (← / →) 快速翻页',
+    tipNav: '提示：支持键盘左右方向键 (← / →) 翻页，快捷按“铺满宽度”或“沉浸宽屏”最大化阅读视野',
     dlZh: '下载完整中文版',
-    dlEn: '下载英文原版',
-    dlDual: '下载中英交替版'
+    dlEn: '下载英文原版'
   },
   en: {
     defaultTitle: 'Online Bilingual Reader',
@@ -189,24 +207,29 @@ const i18n = {
     prevTitle: 'Previous page (← key)',
     next: 'Next',
     nextTitle: 'Next page (→ key)',
+    fitWidth: 'Fit page to available width',
+    fitWidthBtn: 'Fit Width',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
-    resetZoom: 'Reset zoom',
+    enterZen: 'Zen wide view (hide navigation bars)',
+    enterZenBtn: 'Zen Wide',
+    exitZen: 'Exit Zen View',
+    exitZenBtn: 'Exit Zen',
     fullscreen: 'Fullscreen',
     exitFullscreen: 'Exit Fullscreen',
     enBadge: 'Original English',
     zhBadge: 'Chinese Translation',
     loadingText: (p: number) => `Loading page ${p}...`,
-    tipNav: 'Tip: Use left / right arrow keys (← / →) to turn pages',
+    tipNav: 'Tip: Use arrow keys (← / →) to turn pages. Click "Fit Width" or "Zen Wide" to maximize space.',
     dlZh: 'Download Chinese PDF',
-    dlEn: 'Download English PDF',
-    dlDual: 'Download Bilingual PDF'
+    dlEn: 'Download English PDF'
   }
 }
 
 const t = computed(() => i18n[currentLang.value])
 
 const containerRef = ref<HTMLElement | null>(null)
+const viewportRef = ref<HTMLElement | null>(null)
 const enCanvasRef = ref<HTMLCanvasElement | null>(null)
 const zhCanvasRef = ref<HTMLCanvasElement | null>(null)
 
@@ -216,9 +239,11 @@ const inputPage = ref(props.initialPage || 1)
 const totalEnPages = ref(0)
 const totalZhPages = ref(0)
 const scale = ref(1.0)
+const isAutoScaled = ref(true)
 const loading = ref(false)
 const errorMessage = ref('')
 const isFullscreen = ref(false)
+const isZenMode = ref(false)
 
 const maxPages = computed(() => {
   if (viewMode.value === 'en') return totalEnPages.value
@@ -229,6 +254,7 @@ const maxPages = computed(() => {
 let pdfjsLib: any = null
 let enPdfDoc: any = null
 let zhPdfDoc: any = null
+let basePageWidth = 595
 let currentRenderTasks: any[] = []
 
 const cancelCurrentTasks = () => {
@@ -238,6 +264,26 @@ const cancelCurrentTasks = () => {
     } catch (_) {}
   })
   currentRenderTasks = []
+}
+
+const computeFitScale = () => {
+  if (!viewportRef.value) return 1.0
+  const viewportWidth = viewportRef.value.clientWidth || window.innerWidth
+  if (viewMode.value === 'dual') {
+    // 两个栏位，减去 padding 和间隙
+    const colWidth = (viewportWidth - 72) / 2
+    return Math.max(0.65, Math.min(2.2, parseFloat((colWidth / basePageWidth).toFixed(2))))
+  } else {
+    // 单栏模式，居中铺展
+    const targetWidth = Math.min(viewportWidth - 64, 1150)
+    return Math.max(0.75, Math.min(2.4, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+  }
+}
+
+const autoFitWidth = () => {
+  isAutoScaled.value = true
+  scale.value = computeFitScale()
+  renderCurrentPage()
 }
 
 const loadPdfs = async () => {
@@ -269,6 +315,15 @@ const loadPdfs = async () => {
     totalEnPages.value = enDoc.numPages
     totalZhPages.value = zhDoc.numPages
 
+    // 探测基准页面尺寸以计算最佳自适应比例
+    try {
+      const probePage = await (zhDoc || enDoc).getPage(1)
+      const vp = probePage.getViewport({ scale: 1.0 })
+      basePageWidth = vp.width || 595
+    } catch (_) {}
+
+    await nextTick()
+    scale.value = computeFitScale()
     await renderCurrentPage()
   } catch (err: any) {
     console.error('PDF 加载错误:', err)
@@ -283,8 +338,8 @@ const renderSinglePage = async (doc: any, pageNum: number, canvas: HTMLCanvasEle
   if (pageNum < 1 || pageNum > doc.numPages) return
 
   const page = await doc.getPage(pageNum)
-  const dpr = window.devicePixelRatio || 1
-  const viewport = page.getViewport({ scale: scale.value * 1.5 })
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const viewport = page.getViewport({ scale: scale.value })
 
   canvas.width = Math.floor(viewport.width * dpr)
   canvas.height = Math.floor(viewport.height * dpr)
@@ -358,26 +413,32 @@ const onPageInputChange = () => {
 
 const setMode = (mode: 'dual' | 'zh' | 'en') => {
   viewMode.value = mode
+  scale.value = computeFitScale()
   renderCurrentPage()
 }
 
 const zoomIn = () => {
-  if (scale.value < 2.0) {
+  isAutoScaled.value = false
+  if (scale.value < 2.5) {
     scale.value = parseFloat((scale.value + 0.15).toFixed(2))
     renderCurrentPage()
   }
 }
 
 const zoomOut = () => {
-  if (scale.value > 0.6) {
+  isAutoScaled.value = false
+  if (scale.value > 0.5) {
     scale.value = parseFloat((scale.value - 0.15).toFixed(2))
     renderCurrentPage()
   }
 }
 
-const resetZoom = () => {
-  scale.value = 1.0
-  renderCurrentPage()
+const toggleZenMode = () => {
+  isZenMode.value = !isZenMode.value
+  nextTick(() => {
+    scale.value = computeFitScale()
+    renderCurrentPage()
+  })
 }
 
 const toggleFullscreen = () => {
@@ -395,22 +456,37 @@ const handleKeydown = (e: KeyboardEvent) => {
     prevPage()
   } else if (e.key === 'ArrowRight') {
     nextPage()
+  } else if (e.key === 'Escape' && isZenMode.value) {
+    isZenMode.value = false
+    scale.value = computeFitScale()
+    renderCurrentPage()
   }
 }
 
 const onFullscreenChange = () => {
   isFullscreen.value = !!document.fullscreenElement
+  scale.value = computeFitScale()
+  renderCurrentPage()
+}
+
+const handleResize = () => {
+  if (isAutoScaled.value) {
+    scale.value = computeFitScale()
+    renderCurrentPage()
+  }
 }
 
 onMounted(() => {
   loadPdfs()
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('resize', handleResize)
   document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 
 onUnmounted(() => {
   cancelCurrentTasks()
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('resize', handleResize)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 
@@ -425,12 +501,29 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   flex-direction: column;
   background-color: var(--vp-c-bg);
   border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  margin: 1.5rem 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  margin: 1.5rem 0 2rem 0;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  transition: all 0.25s ease;
 }
 
+/* 沉浸宽屏模式 (Zen Mode): 覆盖整个浏览器可视窗口，隐藏多余框架 */
+.dual-pdf-reader.is-zen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  border-radius: 0;
+  margin: 0;
+  border: none;
+  height: 100vh;
+}
+
+/* 系统全屏 */
 .dual-pdf-reader.is-fullscreen {
   position: fixed;
   top: 0;
@@ -440,6 +533,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   z-index: 9999;
   border-radius: 0;
   margin: 0;
+  height: 100vh;
 }
 
 /* 控制栏 */
@@ -448,7 +542,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1rem;
+  padding: 0.7rem 1.2rem;
   background-color: var(--vp-c-bg-soft);
   border-bottom: 1px solid var(--vp-c-divider);
   gap: 0.8rem;
@@ -465,7 +559,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--vp-c-text-1);
-  max-width: 240px;
+  max-width: 260px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -482,7 +576,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 .mode-btn {
   border: none;
   background: transparent;
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: 0.85rem;
   border-radius: 4px;
   cursor: pointer;
@@ -499,14 +593,14 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 
 /* 翻页控制 */
 .ctrl-btn, .tool-btn {
-  padding: 4px 10px;
+  padding: 4px 11px;
   border: 1px solid var(--vp-c-divider);
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.15s ease;
+  font-size: 0.84rem;
+  transition: all 0.15s ease;
 }
 
 .ctrl-btn:hover:not(:disabled), .tool-btn:hover:not(:disabled) {
@@ -519,6 +613,12 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   cursor: not-allowed;
 }
 
+.tool-btn.btn-zen.active {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+}
+
 .page-indicator {
   display: flex;
   align-items: center;
@@ -526,7 +626,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 }
 
 .page-input {
-  width: 50px;
+  width: 52px;
   text-align: center;
   padding: 3px 6px;
   border: 1px solid var(--vp-c-divider);
@@ -544,21 +644,27 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 .zoom-value {
   font-size: 0.82rem;
   color: var(--vp-c-text-2);
-  min-width: 40px;
+  min-width: 42px;
   text-align: center;
 }
 
-/* 视窗区域 */
+/* 视窗区域：高度与宽度合理化拉伸 */
 .reader-viewport {
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   background-color: var(--vp-c-bg-alt);
-  min-height: 600px;
+  min-height: 720px;
+  height: calc(88vh - 120px);
   padding: 1.5rem 1rem;
   gap: 1.5rem;
   overflow: auto;
+}
+
+.is-zen-mode .reader-viewport,
+.is-fullscreen .reader-viewport {
+  height: calc(100vh - 110px);
 }
 
 .canvas-wrapper {
@@ -569,10 +675,10 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 }
 
 .column-badge {
-  font-size: 0.78rem;
-  padding: 2px 8px;
+  font-size: 0.76rem;
+  padding: 3px 10px;
   border-radius: 4px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
   background-color: var(--vp-c-bg-mute);
   color: var(--vp-c-text-2);
   font-weight: 500;
@@ -580,12 +686,13 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 
 .column-badge.badge-zh {
   color: var(--vp-c-brand-1);
+  font-weight: 600;
 }
 
 .canvas-box {
   background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.16);
+  border-radius: 6px;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -603,16 +710,16 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(var(--vp-c-bg-rgb, 255, 255, 255), 0.75);
-  backdrop-filter: blur(2px);
+  background: rgba(var(--vp-c-bg-rgb, 255, 255, 255), 0.78);
+  backdrop-filter: blur(3px);
   gap: 0.8rem;
   color: var(--vp-c-text-1);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .spinner {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 3px solid var(--vp-c-divider);
   border-top-color: var(--vp-c-brand-1);
   border-radius: 50%;
@@ -629,17 +736,17 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   background: #fee2e2;
   color: #b91c1c;
   padding: 0.6rem 1rem;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.85rem;
 }
 
-/* 底部状态 */
+/* 底部状态与操作 */
 .reader-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1rem;
+  padding: 0.6rem 1.2rem;
   background: var(--vp-c-bg-soft);
   border-top: 1px solid var(--vp-c-divider);
   font-size: 0.82rem;
@@ -649,12 +756,13 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 
 .download-links {
   display: flex;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
 .dl-link {
   color: var(--vp-c-brand-1);
   text-decoration: underline;
+  font-weight: 500;
 }
 
 .dl-link:hover {

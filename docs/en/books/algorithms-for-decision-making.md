@@ -1,5 +1,8 @@
 ---
 title: "Algorithms for Decision Making - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # Algorithms for Decision Making

@@ -1,5 +1,8 @@
 ---
 title: "因果推断基础：原理与算法 在线双语阅读"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # 因果推断基础：原理与算法

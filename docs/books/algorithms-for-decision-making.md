@@ -1,5 +1,8 @@
 ---
 title: "决策算法导论 (Algorithms for Decision Making) 在线双语阅读"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # 决策算法导论 (Algorithms for Decision Making)

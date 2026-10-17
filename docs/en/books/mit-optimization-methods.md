@@ -1,5 +1,8 @@
 ---
 title: "MIT Optimization Methods: Theory & Algorithms - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # MIT Optimization Methods: Theory & Algorithms

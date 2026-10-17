@@ -1,5 +1,8 @@
 ---
 title: "Elements of Causal Inference: Foundations and Algorithms - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # Elements of Causal Inference: Foundations and Algorithms

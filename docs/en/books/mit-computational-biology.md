@@ -1,5 +1,8 @@
 ---
 title: "MIT 6.047: Computational Biology Course Text - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # MIT 6.047: Computational Biology Course Text

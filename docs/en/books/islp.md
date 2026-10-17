@@ -1,5 +1,8 @@
 ---
 title: "An Introduction to Statistical Learning (ISLP) - Bilingual Reader"
+aside: false
+outline: false
+pageClass: reader-full-page
 ---
 
 # An Introduction to Statistical Learning (ISLP)
