@@ -3,7 +3,7 @@
     <!-- 顶部控制工具栏 -->
     <div class="reader-toolbar">
       <div class="toolbar-section title-section">
-        <span class="book-title" :title="title">{{ title || '在线双语阅读器' }}</span>
+        <span class="book-title" :title="title">{{ title || t.defaultTitle }}</span>
       </div>
 
       <!-- 视图模式切换 -->
@@ -13,25 +13,25 @@
             type="button"
             :class="['mode-btn', { active: viewMode === 'dual' }]" 
             @click="setMode('dual')"
-            title="双栏中英对照"
+            :title="t.dualTitle"
           >
-            中英双栏
+            {{ t.dualMode }}
           </button>
           <button 
             type="button"
             :class="['mode-btn', { active: viewMode === 'zh' }]" 
             @click="setMode('zh')"
-            title="仅显示中文译本"
+            :title="t.zhTitle"
           >
-            仅中文
+            {{ t.zhMode }}
           </button>
           <button 
             type="button"
             :class="['mode-btn', { active: viewMode === 'en' }]" 
             @click="setMode('en')"
-            title="仅显示英文原版"
+            :title="t.enTitle"
           >
-            仅英文
+            {{ t.enMode }}
           </button>
         </div>
       </div>
@@ -43,9 +43,9 @@
           class="ctrl-btn" 
           :disabled="currentPage <= 1 || loading" 
           @click="prevPage" 
-          title="上一页 (← 快捷键)"
+          :title="t.prevTitle"
         >
-          上一页
+          {{ t.prev }}
         </button>
 
         <div class="page-indicator">
@@ -65,26 +65,26 @@
           class="ctrl-btn" 
           :disabled="currentPage >= maxPages || loading" 
           @click="nextPage" 
-          title="下一页 (→ 快捷键)"
+          :title="t.nextTitle"
         >
-          下一页
+          {{ t.next }}
         </button>
       </div>
 
       <!-- 缩放与全屏工具 -->
       <div class="toolbar-section tool-section">
-        <button type="button" class="tool-btn" @click="zoomOut" title="缩小" :disabled="scale <= 0.6">
+        <button type="button" class="tool-btn" @click="zoomOut" :title="t.zoomOut" :disabled="scale <= 0.6">
           －
         </button>
         <span class="zoom-value">{{ Math.round(scale * 100) }}%</span>
-        <button type="button" class="tool-btn" @click="zoomIn" title="放大" :disabled="scale >= 2.0">
+        <button type="button" class="tool-btn" @click="zoomIn" :title="t.zoomIn" :disabled="scale >= 2.0">
           ＋
         </button>
-        <button type="button" class="tool-btn" @click="resetZoom" title="重置缩放">
+        <button type="button" class="tool-btn" @click="resetZoom" :title="t.resetZoom">
           100%
         </button>
-        <button type="button" class="tool-btn" @click="toggleFullscreen" :title="isFullscreen ? '退出全屏' : '全屏阅读'">
-          {{ isFullscreen ? '退出全屏' : '全屏' }}
+        <button type="button" class="tool-btn" @click="toggleFullscreen" :title="isFullscreen ? t.exitFullscreen : t.fullscreen">
+          {{ isFullscreen ? t.exitFullscreen : t.fullscreen }}
         </button>
       </div>
     </div>
@@ -93,7 +93,7 @@
     <div class="reader-viewport" :class="[`mode-${viewMode}`]">
       <!-- 英文栏 -->
       <div v-show="viewMode === 'dual' || viewMode === 'en'" class="canvas-wrapper en-wrapper">
-        <div class="column-badge">英文原版 (Page {{ currentPage }})</div>
+        <div class="column-badge">{{ t.enBadge }} (Page {{ currentPage }})</div>
         <div class="canvas-box">
           <canvas ref="enCanvasRef"></canvas>
         </div>
@@ -101,7 +101,7 @@
 
       <!-- 中文栏 -->
       <div v-show="viewMode === 'dual' || viewMode === 'zh'" class="canvas-wrapper zh-wrapper">
-        <div class="column-badge badge-zh">中文译本 (Page {{ currentPage }})</div>
+        <div class="column-badge badge-zh">{{ t.zhBadge }} (Page {{ currentPage }})</div>
         <div class="canvas-box">
           <canvas ref="zhCanvasRef"></canvas>
         </div>
@@ -110,7 +110,7 @@
       <!-- 加载遮罩 -->
       <div v-if="loading" class="reader-loading">
         <div class="spinner"></div>
-        <span>正在加载第 {{ currentPage }} 页...</span>
+        <span>{{ t.loadingText(currentPage) }}</span>
       </div>
 
       <!-- 错误提示 -->
@@ -121,11 +121,11 @@
 
     <!-- 底部状态与下载栏 -->
     <div class="reader-footer">
-      <div class="tip-text">提示：支持使用键盘左右方向键 (← / →) 快速翻页</div>
+      <div class="tip-text">{{ t.tipNav }}</div>
       <div class="download-links">
-        <a v-if="zhSrc" :href="zhSrc" download class="dl-link" target="_blank">下载完整中文版</a>
-        <a v-if="enSrc" :href="enSrc" download class="dl-link" target="_blank">下载英文原版</a>
-        <a v-if="downloadDual" :href="downloadDual" download class="dl-link" target="_blank">下载中英交替版</a>
+        <a v-if="zhSrc" :href="zhSrc" download class="dl-link" target="_blank">{{ t.dlZh }}</a>
+        <a v-if="enSrc" :href="enSrc" download class="dl-link" target="_blank">{{ t.dlEn }}</a>
+        <a v-if="downloadDual" :href="downloadDual" download class="dl-link" target="_blank">{{ t.dlDual }}</a>
       </div>
     </div>
   </div>
@@ -133,6 +133,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useRoute } from 'vitepress'
 
 const props = defineProps<{
   title?: string
@@ -140,7 +141,70 @@ const props = defineProps<{
   zhSrc: string
   downloadDual?: string
   initialPage?: number
+  lang?: 'zh' | 'en'
 }>()
+
+const route = useRoute()
+const currentLang = computed<'zh' | 'en'>(() => {
+  if (props.lang) return props.lang
+  if (route.path.startsWith('/en/') || route.path === '/en') return 'en'
+  return 'zh'
+})
+
+const i18n = {
+  zh: {
+    defaultTitle: '在线双语阅读器',
+    dualMode: '中英双栏',
+    dualTitle: '双栏中英对照',
+    zhMode: '仅中文',
+    zhTitle: '仅显示中文译本',
+    enMode: '仅英文',
+    enTitle: '仅显示英文原版',
+    prev: '上一页',
+    prevTitle: '上一页 (← 快捷键)',
+    next: '下一页',
+    nextTitle: '下一页 (→ 快捷键)',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    resetZoom: '重置缩放',
+    fullscreen: '全屏',
+    exitFullscreen: '退出全屏',
+    enBadge: '英文原版',
+    zhBadge: '中文译本',
+    loadingText: (p: number) => `正在加载第 ${p} 页...`,
+    tipNav: '提示：支持使用键盘左右方向键 (← / →) 快速翻页',
+    dlZh: '下载完整中文版',
+    dlEn: '下载英文原版',
+    dlDual: '下载中英交替版'
+  },
+  en: {
+    defaultTitle: 'Online Bilingual Reader',
+    dualMode: 'Dual Columns',
+    dualTitle: 'Side-by-side bilingual view',
+    zhMode: 'Chinese Only',
+    zhTitle: 'View Chinese translation only',
+    enMode: 'English Only',
+    enTitle: 'View original English only',
+    prev: 'Prev',
+    prevTitle: 'Previous page (← key)',
+    next: 'Next',
+    nextTitle: 'Next page (→ key)',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    resetZoom: 'Reset zoom',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit Fullscreen',
+    enBadge: 'Original English',
+    zhBadge: 'Chinese Translation',
+    loadingText: (p: number) => `Loading page ${p}...`,
+    tipNav: 'Tip: Use left / right arrow keys (← / →) to turn pages',
+    dlZh: 'Download Chinese PDF',
+    dlEn: 'Download English PDF',
+    dlDual: 'Download Bilingual PDF'
+  }
+}
+
+const t = computed(() => i18n[currentLang.value])
 
 const containerRef = ref<HTMLElement | null>(null)
 const enCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -184,11 +248,9 @@ const loadPdfs = async () => {
 
     if (!pdfjsLib) {
       pdfjsLib = await import('pdfjs-dist')
-      // 设置 worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
     }
 
-    // 并行拉取文档元数据（range 范围请求，不会拉取全部页面）
     const loadEn = pdfjsLib.getDocument({
       url: props.enSrc,
       disableAutoFetch: true,

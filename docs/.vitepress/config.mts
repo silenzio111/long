@@ -1,50 +1,122 @@
 import { defineConfig } from 'vitepress'
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
-  lang: 'zh-CN',
-  title: "Silenzio's VitePress Site",
   base: "/A-Vitepress-Site/",
-  description: "学习笔记、学术资料与翻译书籍库",
   markdown: {
     math: true
   },
-  themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: '首页', link: '/' },
-      { text: '📚 翻译书籍库', link: '/books/' },
-      { text: 'Pandas 学习', link: '/pandas/desc' },
-      { text: '中级计量经济学', link: '/中级计量经济学/desc' },
-      { text: '个人博客主站', link: 'https://silenzio111.github.io/' }
-    ],
-    sidebar: [
-      {
-        text: '📚 翻译书籍与文献库',
-        items: [
-          { text: '文库总览与目录', link: '/books/' },
-          { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' }
-        ]
-      },
-      {
-        text: 'Pandas learning & practise',
-        items: [
-          { text: '简介与说明', link: '/pandas/desc' },
-          { text: '创建、读取和写入', link: '/pandas/创建、读取和写入讲义' },
-          { text: 'Practise01', link: '/pandas/创建、读取和写入练习' },
-          { text: '索引、选择和赋值', link: '/pandas/索引、选择和赋值讲义' },
-          { text: 'Practise02', link: '/pandas/索引、选择和赋值练习' }
-        ]
-      },
-      {
-        text: '基于 Python 的中级计量经济学',
-        items: [
-          { text: '课程导引', link: '/中级计量经济学/desc' }
-        ]
+  locales: {
+    root: {
+      label: '简体中文',
+      lang: 'zh-CN',
+      title: "Silenzio 的双语学术文库",
+      description: "学术专著、经典教材与前沿文献的双语翻译阅读平台",
+      themeConfig: {
+        nav: [
+          { text: '首页', link: '/' },
+          { text: '📚 翻译书籍库', link: '/books/' },
+          { text: '个人博客主站', link: 'https://silenzio111.github.io/' }
+        ],
+        sidebar: {
+          '/books/': [
+            {
+              text: '📚 翻译书籍与文献库',
+              items: [
+                { text: '文库总览与目录', link: '/books/' },
+                { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' }
+              ]
+            }
+          ]
+        },
+        outline: {
+          label: '本页导览'
+        },
+        docFooter: {
+          prev: '上一篇',
+          next: '下一篇'
+        },
+        returnToTopLabel: '返回顶部',
+        sidebarMenuLabel: '目录菜单',
+        darkModeSwitchLabel: '外观切换'
       }
-    ],
+    },
+    en: {
+      label: 'English',
+      lang: 'en-US',
+      link: '/en/',
+      title: "Silenzio's Academic Library",
+      description: "Bilingual platform for translated academic books, textbooks, and scientific papers",
+      themeConfig: {
+        nav: [
+          { text: 'Home', link: '/en/' },
+          { text: '📚 Book Library', link: '/en/books/' },
+          { text: 'Personal Blog', link: 'https://silenzio111.github.io/' }
+        ],
+        sidebar: {
+          '/en/books/': [
+            {
+              text: '📚 Translated Books & Papers',
+              items: [
+                { text: 'Catalog Overview', link: '/en/books/' },
+                { text: 'Operational Research (17P)', link: '/en/books/operational-research' }
+              ]
+            }
+          ]
+        },
+        outline: {
+          label: 'On this page'
+        },
+        docFooter: {
+          prev: 'Previous',
+          next: 'Next'
+        },
+        returnToTopLabel: 'Return to top',
+        sidebarMenuLabel: 'Menu',
+        darkModeSwitchLabel: 'Appearance'
+      }
+    }
+  },
+  themeConfig: {
     search: {
-      provider: 'local'
+      provider: 'local',
+      options: {
+        locales: {
+          root: {
+            translations: {
+              button: {
+                buttonText: '搜索文档',
+                buttonAriaLabel: '搜索文档'
+              },
+              modal: {
+                noResultsText: '无法找到相关结果',
+                resetButtonTitle: '清除查询条件',
+                footer: {
+                  selectText: '选择',
+                  navigateText: '切换',
+                  closeText: '关闭'
+                }
+              }
+            }
+          },
+          en: {
+            translations: {
+              button: {
+                buttonText: 'Search books',
+                buttonAriaLabel: 'Search books'
+              },
+              modal: {
+                noResultsText: 'No results found',
+                resetButtonTitle: 'Clear query',
+                footer: {
+                  selectText: 'to select',
+                  navigateText: 'to navigate',
+                  closeText: 'to close'
+                }
+              }
+            }
+          }
+        }
+      }
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/silenzio111/A-Vitepress-Site' }
