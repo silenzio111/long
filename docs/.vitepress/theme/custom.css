@@ -178,7 +178,7 @@
    ========================================================= */
 
 :root {
-  --vp-sidebar-width: 210px;
+  --vp-sidebar-width: 240px;
   --vp-layout-max-width: 100vw;
 }
 
@@ -310,21 +310,52 @@ body.lock-page-scroll,
   padding: 0 !important;
 }
 
-.reader-full-page .VPLocalNav {
+.reader-full-page .VPLocalNav,
+.reader-full-page .VPNav {
   display: none !important;
 }
 
+/* 侧边栏从窗口顶部 0px 开始撑满，支持平滑折叠 */
+.reader-full-page .VPSidebar {
+  top: 0 !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  padding-top: 6px !important;
+  z-index: 50 !important;
+  transition: transform 0.25s ease, width 0.25s ease !important;
+}
+
+/* 切换至“本书目录”时，隐去 VitePress 默认书籍分组 */
+body.sidebar-show-toc .reader-full-page .VPSidebarGroup,
+body.sidebar-show-toc .VPSidebar .VPSidebarGroup {
+  display: none !important;
+}
+
+/* 目录栏折叠状态：完全收起左侧栏，让 PDF 阅读视窗 100% 充满屏幕 */
+body.reader-sidebar-collapsed .reader-full-page .VPSidebar,
+body.reader-sidebar-collapsed .VPSidebar {
+  transform: translateX(-100%) !important;
+  width: 0 !important;
+  padding: 0 !important;
+}
+
+body.reader-sidebar-collapsed .reader-full-page .VPContent,
+body.reader-sidebar-collapsed .VPContent {
+  padding-left: 0 !important;
+}
+
 .reader-full-page .VPContent {
-  height: calc(100vh - var(--vp-nav-height)) !important;
-  max-height: calc(100vh - var(--vp-nav-height)) !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
   padding-top: 0 !important;
-  margin-top: var(--vp-nav-height) !important;
+  margin-top: 0 !important;
   padding-bottom: 0 !important;
   padding-right: 2px !important;
   display: flex !important;
   flex-direction: column !important;
+  transition: padding-left 0.25s ease !important;
 }
 
 @media (min-width: 960px) {

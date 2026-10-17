@@ -4,102 +4,143 @@
     class="dual-pdf-reader" 
     :class="{ 
       'is-zen-mode': isZenMode, 
-      'is-fullscreen': isFullscreen 
+      'is-fullscreen': isFullscreen,
+      'is-sidebar-collapsed': isSidebarCollapsed
     }"
   >
-    <!-- 顶部极简控制工具栏：去除非必要标题，只保留核心交互功能 -->
-    <div class="reader-toolbar">
-      <!-- 视图模式切换 -->
-      <div class="toolbar-section mode-section">
-        <div class="mode-btn-group">
-          <button 
-            type="button"
-            :class="['mode-btn', { active: viewMode === 'dual' }]" 
-            @click="setMode('dual')"
-            title="双栏中英对照并排滚动"
-          >
-            中英双栏
-          </button>
-          <button 
-            type="button"
-            :class="['mode-btn', { active: viewMode === 'zh' }]" 
-            @click="setMode('zh')"
-            title="仅显示中文译本连续滚动"
-          >
-            仅中文
-          </button>
-          <button 
-            type="button"
-            :class="['mode-btn', { active: viewMode === 'en' }]" 
-            @click="setMode('en')"
-            title="仅显示英文原版连续滚动"
-          >
-            仅英文
-          </button>
-        </div>
-      </div>
+    <!-- 悬浮快捷控制触发器：默认纯粹极简，点击或悬停呼出对应面板 -->
+    <div class="floating-reader-triggers">
+      <!-- 重新呼出侧边栏目录按钮（仅在侧边栏折叠时显示） -->
+      <button 
+        v-if="isSidebarCollapsed" 
+        type="button" 
+        class="float-trigger-btn btn-float-sidebar" 
+        @click="toggleSidebar" 
+        title="展开左侧章节目录栏"
+      >
+        📑 目录
+      </button>
 
-      <!-- 翻页控制 -->
-      <div class="toolbar-section page-section">
-        <button 
-          type="button" 
-          class="ctrl-btn" 
-          :disabled="currentPage <= 1 || loading" 
-          @click="scrollToPage(currentPage - 1)" 
-          title="滚动到上一页"
-        >
-          上一页
-        </button>
-
-        <div class="page-indicator">
-          <input 
-            type="number" 
-            class="page-input" 
-            v-model.lazy="inputPage"
-            @change="onPageInputChange"
-            :min="1" 
-            :max="maxPages"
-          />
-          <span class="page-total">/ {{ maxPages || '-' }}</span>
-        </div>
-
-        <button 
-          type="button" 
-          class="ctrl-btn" 
-          :disabled="currentPage >= maxPages || loading" 
-          @click="scrollToPage(currentPage + 1)" 
-          title="滚动到下一页"
-        >
-          下一页
-        </button>
-      </div>
-
-      <!-- 缩放与视图工具 -->
-      <div class="toolbar-section tool-section">
-        <button type="button" class="tool-btn" @click="autoFitWidth" title="铺满可用宽度">
-          适应宽度
-        </button>
-        <button type="button" class="tool-btn" @click="zoomOut" title="缩小" :disabled="scale <= 0.45">
-          －
-        </button>
-        <span class="zoom-value">{{ Math.round(scale * 100) }}%</span>
-        <button type="button" class="tool-btn" @click="zoomIn" title="放大" :disabled="scale >= 2.6">
-          ＋
-        </button>
-        <button 
-          type="button" 
-          class="tool-btn btn-zen" 
-          :class="{ active: isZenMode }"
-          @click="toggleZenMode" 
-          :title="isZenMode ? '退出沉浸宽屏' : '沉浸宽屏阅读'"
-        >
-          {{ isZenMode ? '退出宽屏' : '沉浸宽屏' }}
-        </button>
-        <button type="button" class="tool-btn" @click="toggleFullscreen" :title="isFullscreen ? '退出全屏' : '系统全屏'">
-          {{ isFullscreen ? '退出全屏' : '全屏' }}
-        </button>
-      </div>
+      <!-- 呼出控制工具栏按钮 -->
+      <button 
+        type="button" 
+        class="float-trigger-btn btn-float-toolbar" 
+        :class="{ active: isToolbarVisible }"
+        @click="toggleToolbar" 
+        title="切换控制工具栏（中英模式/翻页/缩放）"
+      >
+        🛠️ 控制栏
+      </button>
     </div>
+
+    <!-- 顶部控制工具栏：默认完全隐藏，通过悬浮按钮呼出 -->
+    <transition name="toolbar-slide">
+      <div v-show="isToolbarVisible" class="reader-toolbar">
+        <!-- 视图模式切换 -->
+        <div class="toolbar-section mode-section">
+          <div class="mode-btn-group">
+            <button 
+              type="button"
+              :class="['mode-btn', { active: viewMode === 'dual' }]" 
+              @click="setMode('dual')"
+              title="双栏中英对照并排滚动"
+            >
+              中英双栏
+            </button>
+            <button 
+              type="button"
+              :class="['mode-btn', { active: viewMode === 'zh' }]" 
+              @click="setMode('zh')"
+              title="仅显示中文译本连续滚动"
+            >
+              仅中文
+            </button>
+            <button 
+              type="button"
+              :class="['mode-btn', { active: viewMode === 'en' }]" 
+              @click="setMode('en')"
+              title="仅显示英文原版连续滚动"
+            >
+              仅英文
+            </button>
+          </div>
+        </div>
+
+        <!-- 翻页控制 -->
+        <div class="toolbar-section page-section">
+          <button 
+            type="button" 
+            class="ctrl-btn" 
+            :disabled="currentPage <= 1 || loading" 
+            @click="scrollToPage(currentPage - 1)" 
+            title="滚动到上一页"
+          >
+            上一页
+          </button>
+
+          <div class="page-indicator">
+            <input 
+              type="number" 
+              class="page-input" 
+              v-model.lazy="inputPage"
+              @change="onPageInputChange"
+              :min="1" 
+              :max="maxPages"
+            />
+            <span class="page-total">/ {{ maxPages || '-' }}</span>
+          </div>
+
+          <button 
+            type="button" 
+            class="ctrl-btn" 
+            :disabled="currentPage >= maxPages || loading" 
+            @click="scrollToPage(currentPage + 1)" 
+            title="滚动到下一页"
+          >
+            下一页
+          </button>
+        </div>
+
+        <!-- 缩放与视图工具 -->
+        <div class="toolbar-section tool-section">
+          <button type="button" class="tool-btn" @click="autoFitWidth" title="铺满可用宽度">
+            适应宽度
+          </button>
+          <button type="button" class="tool-btn" @click="zoomOut" title="缩小" :disabled="scale <= 0.45">
+            －
+          </button>
+          <span class="zoom-value">{{ Math.round(scale * 100) }}%</span>
+          <button type="button" class="tool-btn" @click="zoomIn" title="放大" :disabled="scale >= 2.6">
+            ＋
+          </button>
+          <button 
+            type="button" 
+            class="tool-btn btn-zen" 
+            :class="{ active: isZenMode }"
+            @click="toggleZenMode" 
+            :title="isZenMode ? '退出沉浸宽屏' : '沉浸宽屏阅读'"
+          >
+            {{ isZenMode ? '退出宽屏' : '沉浸宽屏' }}
+          </button>
+          <button type="button" class="tool-btn" @click="toggleFullscreen" :title="isFullscreen ? '退出全屏' : '系统全屏'">
+            {{ isFullscreen ? '退出全屏' : '全屏' }}
+          </button>
+
+          <!-- 离线下载便捷入口 -->
+          <a v-if="zhSrc" :href="zhSrc" download class="tool-btn btn-dl" target="_blank" title="下载高清中文 PDF">
+            📥 中文
+          </a>
+          <a v-if="enSrc" :href="enSrc" download class="tool-btn btn-dl" target="_blank" title="下载英文原版 PDF">
+            📥 英文
+          </a>
+
+          <!-- 收起工具栏按钮 -->
+          <button type="button" class="tool-btn btn-close-toolbar" @click="toggleToolbar" title="隐藏工具栏，回归极简阅读">
+            ✕ 收起
+          </button>
+        </div>
+      </div>
+    </transition>
 
     <!-- 连续垂直自然滚动阅读视窗 -->
     <div 
@@ -139,21 +180,13 @@
         <span>{{ errorMessage }}</span>
       </div>
     </div>
-
-    <!-- 底部极简离线下载栏 -->
-    <div class="reader-footer">
-      <div class="footer-status">第 {{ currentPage }} 页 / 共 {{ maxPages }} 页</div>
-      <div class="download-links">
-        <a v-if="zhSrc" :href="zhSrc" download class="dl-link" target="_blank">📥 下载中文 PDF</a>
-        <a v-if="enSrc" :href="enSrc" download class="dl-link" target="_blank">📥 下载英文 PDF</a>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, shallowRef, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import PdfPageRow from './PdfPageRow.vue'
+import { useReaderState } from '../useReaderState'
 
 const props = defineProps<{
   title?: string
@@ -162,6 +195,18 @@ const props = defineProps<{
   initialPage?: number
   lang?: 'zh' | 'en'
 }>()
+
+const {
+  isSidebarCollapsed,
+  isToolbarVisible,
+  currentPage: stateCurrentPage,
+  maxPages: stateMaxPages,
+  setOutline,
+  setJumpCallback,
+  toggleSidebar,
+  toggleToolbar,
+  resetReader
+} = useReaderState()
 
 const containerRef = ref<HTMLElement | null>(null)
 const viewportRef = ref<HTMLElement | null>(null)
@@ -178,7 +223,6 @@ const errorMessage = ref('')
 const isFullscreen = ref(false)
 const isZenMode = ref(false)
 
-// 初始严格限定为 1，严禁使用 9999 导致挂载时 DOM 爆仓卡死
 const maxPages = computed(() => {
   const en = totalEnPages.value
   const zh = totalZhPages.value
@@ -243,6 +287,7 @@ const onViewportScroll = () => {
   if (cur !== currentPage.value) {
     currentPage.value = cur
     inputPage.value = cur
+    stateCurrentPage.value = cur
   }
 }
 
@@ -254,6 +299,7 @@ const scrollToPage = (p: number, smooth = true) => {
   isProgrammaticScrolling = true
   currentPage.value = p
   inputPage.value = p
+  stateCurrentPage.value = p
 
   viewportRef.value.scrollTo({
     top: targetTop,
@@ -341,6 +387,48 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+// 递归解析 PDF 章节目录树
+const extractOutline = async (doc: any) => {
+  try {
+    const rawOutline = await doc.getOutline()
+    if (!rawOutline || !rawOutline.length) {
+      setOutline([])
+      return
+    }
+
+    const resolveItem = async (item: any): Promise<any> => {
+      let pageNum: number | null = null
+      try {
+        let dest = item.dest
+        if (typeof dest === 'string') {
+          dest = await doc.getDestination(dest)
+        }
+        if (Array.isArray(dest)) {
+          const pageIndex = await doc.getPageIndex(dest[0])
+          pageNum = pageIndex + 1
+        }
+      } catch (_) {}
+
+      let subItems: any[] = []
+      if (item.items && item.items.length) {
+        subItems = await Promise.all(item.items.map((sub: any) => resolveItem(sub)))
+      }
+
+      return {
+        title: item.title,
+        page: pageNum,
+        items: subItems
+      }
+    }
+
+    const resolved = await Promise.all(rawOutline.map((item: any) => resolveItem(item)))
+    setOutline(resolved)
+  } catch (err) {
+    console.warn('PDF 章节目录解析失败:', err)
+    setOutline([])
+  }
+}
+
 const loadPdfs = async () => {
   if (typeof window === 'undefined') return
   try {
@@ -369,6 +457,7 @@ const loadPdfs = async () => {
     zhPdfDoc.value = zhDoc
     totalEnPages.value = enDoc.numPages
     totalZhPages.value = zhDoc.numPages
+    stateMaxPages.value = maxPages.value
 
     try {
       const probePage = await (zhDoc || enDoc).getPage(1)
@@ -379,6 +468,9 @@ const loadPdfs = async () => {
 
     await nextTick()
     scale.value = computeFitScale()
+
+    // 异步提取目录大纲
+    extractOutline(zhDoc || enDoc)
 
     if (props.initialPage && props.initialPage > 1) {
       await nextTick()
@@ -406,6 +498,8 @@ onMounted(() => {
     document.documentElement.classList.add('lock-page-scroll')
     document.body.classList.add('lock-page-scroll')
   }
+  setJumpCallback((p) => scrollToPage(p))
+  stateCurrentPage.value = currentPage.value
   loadPdfs()
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', handleResize)
@@ -417,6 +511,7 @@ onUnmounted(() => {
     document.documentElement.classList.remove('lock-page-scroll')
     document.body.classList.remove('lock-page-scroll')
   }
+  resetReader()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -460,17 +555,75 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   height: 100vh;
 }
 
-/* 控制栏：单行整齐紧凑 */
+/* 悬浮快捷控制触发器 */
+.floating-reader-triggers {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.float-trigger-btn {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.float-trigger-btn:hover {
+  opacity: 1;
+  background: var(--vp-c-bg);
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+  transform: translateY(-1px);
+}
+
+.btn-float-sidebar {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  z-index: 100;
+}
+
+/* 控制栏：由悬浮按键呼出 */
 .reader-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.45rem 0.8rem;
+  padding: 0.4rem 0.8rem;
   background-color: var(--vp-c-bg-soft);
   border-bottom: 1px solid var(--vp-c-divider);
   gap: 0.8rem;
   user-select: none;
   flex-shrink: 0;
+  z-index: 30;
+}
+
+.toolbar-slide-enter-active,
+.toolbar-slide-leave-active {
+  transition: all 0.22s ease;
+}
+
+.toolbar-slide-enter-from,
+.toolbar-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
 }
 
 .toolbar-section {
@@ -515,6 +668,9 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   cursor: pointer;
   font-size: 0.82rem;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .ctrl-btn:hover:not(:disabled), .tool-btn:hover:not(:disabled) {
@@ -531,6 +687,17 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   background: var(--vp-c-brand-soft);
   color: var(--vp-c-brand-1);
   border-color: var(--vp-c-brand-1);
+}
+
+.tool-btn.btn-close-toolbar {
+  background: transparent;
+  border-color: transparent;
+  color: var(--vp-c-text-3);
+}
+
+.tool-btn.btn-close-toolbar:hover {
+  background: var(--vp-c-bg-mute);
+  color: var(--vp-c-text-1);
 }
 
 .page-indicator {
@@ -621,32 +788,5 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   border-radius: 4px;
   font-size: 0.85rem;
   z-index: 10;
-}
-
-/* 底部离线下载 */
-.reader-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.35rem 0.8rem;
-  background: var(--vp-c-bg-soft);
-  border-top: 1px solid var(--vp-c-divider);
-  font-size: 0.78rem;
-  color: var(--vp-c-text-2);
-  flex-shrink: 0;
-}
-
-.download-links {
-  display: flex;
-  gap: 1rem;
-}
-
-.dl-link {
-  color: var(--vp-c-brand-1);
-  text-decoration: underline;
-}
-
-.dl-link:hover {
-  color: var(--vp-c-brand-2);
 }
 </style>
