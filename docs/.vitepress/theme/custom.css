@@ -295,33 +295,45 @@
 }
 
 /* =========================================================
-   阅读器沉浸模式：文档网页彻底不滚动，滚动完全发生在 PDF 阅读视窗内
+   阅读器全屏工作台：文档网页彻底不滚动，PDF 占满整个右侧栏
    ========================================================= */
 
 html:has(.reader-full-page),
 body:has(.reader-full-page),
-.reader-full-page {
+html.lock-page-scroll,
+body.lock-page-scroll,
+.Layout.reader-full-page {
   overflow: hidden !important;
   height: 100vh !important;
   max-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.reader-full-page .VPLocalNav {
+  display: none !important;
 }
 
 .reader-full-page .VPContent {
   height: calc(100vh - var(--vp-nav-height)) !important;
   max-height: calc(100vh - var(--vp-nav-height)) !important;
+  box-sizing: border-box !important;
   overflow: hidden !important;
+  padding-top: 0 !important;
+  margin-top: var(--vp-nav-height) !important;
   padding-bottom: 0 !important;
-}
-
-.reader-full-page .VPDoc {
-  height: 100% !important;
-  max-height: 100% !important;
-  overflow: hidden !important;
-  padding: 0 2px 0 4px !important;
+  padding-right: 2px !important;
   display: flex !important;
   flex-direction: column !important;
 }
 
+@media (min-width: 960px) {
+  .reader-full-page .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width) !important;
+  }
+}
+
+.reader-full-page .VPDoc,
 .reader-full-page .VPDoc .container,
 .reader-full-page .VPDoc .content,
 .reader-full-page .VPDoc .content-container,
@@ -329,15 +341,17 @@ body:has(.reader-full-page),
 .reader-full-page .VPDoc .vp-doc {
   height: 100% !important;
   max-height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 100% !important;
   padding: 0 !important;
   margin: 0 !important;
+  display: flex !important;
+  flex: 1 1 100% !important;
+  flex-direction: column !important;
 }
 
-/* 隐藏外层多余的文本与底部翻页链接，消除外层网页内容撑出的滚动条 */
+/* 隐藏外层多余的文本与底部翻页链接，确保只有 PDF 阅读器呈现 */
 .reader-full-page .vp-doc > h1,
 .reader-full-page .vp-doc > blockquote,
 .reader-full-page .vp-doc > h3,
@@ -347,15 +361,29 @@ body:has(.reader-full-page),
   display: none !important;
 }
 
-/* 阅读器组件：直接充满整屏，零边距贴合 */
-.dual-pdf-reader {
+/* 阅读器组件：100% 占满右侧全部区域 */
+.reader-full-page .dual-pdf-reader {
   width: 100% !important;
   height: 100% !important;
   max-height: 100% !important;
   margin: 0 !important;
+  padding: 0 !important;
   border-radius: 0 !important;
   border: none !important;
   flex: 1 1 100% !important;
   box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 阅读视窗：全右侧唯一的滚动容器，上下滚动实现自然翻页 */
+.reader-full-page .dual-pdf-reader .reader-viewport {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  padding: 0.8rem 0.3rem 2rem 0.3rem !important;
+  margin: 0 !important;
 }
 

@@ -356,15 +356,15 @@ const computedPageHeight = computed(() => {
 
 const computeFitScale = () => {
   if (!viewportRef.value) return 1.0
-  const viewportWidth = viewportRef.value.clientWidth || window.innerWidth
+  const viewportWidth = viewportRef.value.clientWidth || (typeof window !== 'undefined' ? window.innerWidth - 220 : 1200)
   if (viewMode.value === 'dual') {
-    // 双栏对照：视口总宽减去边距 (约 48px)，除以 2，将横向利用率拉满
-    const colWidth = (viewportWidth - 48) / 2
-    return Math.max(0.55, Math.min(2.5, parseFloat((colWidth / basePageWidth).toFixed(2))))
+    // 双栏对照：视口总宽减去边距与两栏间隙 (约 36px)，除以 2，将横向利用率拉满
+    const colWidth = (viewportWidth - 36) / 2
+    return Math.max(0.45, Math.min(2.5, parseFloat((colWidth / basePageWidth).toFixed(2))))
   } else {
     // 单栏模式：减去页边距，居中铺展
-    const targetWidth = Math.min(viewportWidth - 36, 1200)
-    return Math.max(0.7, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+    const targetWidth = Math.max(Math.min(viewportWidth - 32, 1400), 400)
+    return Math.max(0.6, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
   }
 }
 
@@ -437,25 +437,16 @@ const renderPage = async (p: number) => {
 
 // 释放超出可视视口缓冲区的 Canvas 显存，防止长文档内存溢出
 const cleanDistantPages = (centerPage: number) => {
-  for (let p = 1; p <= maxPages.value; p++) {
-    if (Math.abs(p - centerPage) > 4) {
-      const enCacheKey = `en_${p}_${scale.value}`
-      if (renderedKeys.has(enCacheKey)) {
-        renderedKeys.delete(enCacheKey)
-        const c = canvasMap[`en_${p}`]
-        if (c) {
-          c.width = 0
-          c.height = 0
-        }
-      }
-      const zhCacheKey = `zh_${p}_${scale.value}`
-      if (renderedKeys.has(zhCacheKey)) {
-        renderedKeys.delete(zhCacheKey)
-        const c = canvasMap[`zh_${p}`]
-        if (c) {
-          c.width = 0
-          c.height = 0
-        }
+  for (const cacheKey of Array.from(renderedKeys)) {
+    const parts = cacheKey.split('_')
+    const lang = parts[0]
+    const p = parseInt(parts[1], 10)
+    if (Math.abs(p - centerPage) > 3) {
+      renderedKeys.delete(cacheKey)
+      const c = canvasMap[`${lang}_${p}`]
+      if (c) {
+        c.width = 0
+        c.height = 0
       }
     }
   }
@@ -474,8 +465,8 @@ let scrollDebounceTimer: any = null
 const onViewportScroll = () => {
   if (!viewportRef.value) return
   const scrollTop = viewportRef.value.scrollTop
-  const rowHeight = computedPageHeight.value + 36
-  const curPage = Math.min(maxPages.value, Math.max(1, Math.floor((scrollTop + 100) / rowHeight) + 1))
+  const rowStep = computedPageHeight.value + 52
+  const curPage = Math.min(maxPages.value, Math.max(1, Math.round((scrollTop + 80) / rowStep) + 1))
   
   if (currentPage.value !== curPage) {
     currentPage.value = curPage
@@ -491,13 +482,20 @@ const onViewportScroll = () => {
 const scrollToPage = (p: number, smooth = true) => {
   if (!viewportRef.value) return
   p = Math.min(maxPages.value, Math.max(1, p))
-  const rowHeight = computedPageHeight.value + 36
-  const targetTop = (p - 1) * rowHeight
-
-  viewportRef.value.scrollTo({
-    top: targetTop,
-    behavior: smooth ? 'smooth' : 'auto'
-  })
+  
+  const el = document.getElementById(`page-row-${p}`)
+  if (el) {
+    viewportRef.value.scrollTo({
+      top: el.offsetTop - 8,
+      behavior: smooth ? 'smooth' : 'auto'
+    })
+  } else {
+    const rowStep = computedPageHeight.value + 52
+    viewportRef.value.scrollTo({
+      top: (p - 1) * rowStep,
+      behavior: smooth ? 'smooth' : 'auto'
+    })
+  }
 
   currentPage.value = p
   inputPage.value = p
@@ -646,6 +644,17 @@ const loadPdfs = async () => {
       await nextTick()
       scrollToPage(props.initialPage, false)
     }
+
+    setTimeout(() => {
+      if (isAutoScaled.value && viewportRef.value) {
+        const newScale = computeFitScale()
+        if (Math.abs(newScale - scale.value) > 0.02) {
+          scale.value = newScale
+          renderedKeys.clear()
+          renderBufferPages(currentPage.value)
+        }
+      }
+    }, 120)
   } catch (err: any) {
     console.error('PDF 加载错误:', err)
     errorMessage.value = `PDF 文档加载失败: ${err?.message || '网络或格式异常'}`
@@ -655,6 +664,10 @@ const loadPdfs = async () => {
 }
 
 onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.add('lock-page-scroll')
+    document.body.classList.add('lock-page-scroll')
+  }
   loadPdfs()
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', handleResize)
@@ -662,6 +675,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('lock-page-scroll')
+    document.body.classList.remove('lock-page-scroll')
+  }
   activeRenderTasks.forEach(task => {
     try { if (task && task.cancel) task.cancel() } catch (_) {}
   })
