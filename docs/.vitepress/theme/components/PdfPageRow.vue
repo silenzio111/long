@@ -5,6 +5,7 @@
       <div 
         v-if="mode === 'dual' || mode === 'en'" 
         class="canvas-card"
+        :class="{ 'is-inverted': isInverted }"
         :style="{ width: `${computedWidth}px`, height: `${computedHeight}px` }"
       >
         <canvas ref="enCanvasRef"></canvas>
@@ -14,6 +15,7 @@
       <div 
         v-if="mode === 'dual' || mode === 'zh'" 
         class="canvas-card"
+        :class="{ 'is-inverted': isInverted }"
         :style="{ width: `${computedWidth}px`, height: `${computedHeight}px` }"
       >
         <canvas ref="zhCanvasRef"></canvas>
@@ -24,6 +26,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useReaderState } from '../useReaderState'
 
 const props = defineProps<{
   page: number
@@ -34,6 +37,8 @@ const props = defineProps<{
   baseWidth: number
   baseHeight: number
 }>()
+
+const { isInverted } = useReaderState()
 
 const enCanvasRef = ref<HTMLCanvasElement | null>(null)
 const zhCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -84,7 +89,7 @@ const renderDoc = async (doc: any, canvas: HTMLCanvasElement | null, isZh: boole
     await task.promise
   } catch (err: any) {
     if (err?.name !== 'RenderingCancelledException') {
-      // 忽略任务主动取消异常
+      // 忽略主动取消
     }
   }
 }
@@ -145,6 +150,19 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   justify-content: center;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* 夜间反色暗黑模式 */
+.canvas-card.is-inverted {
+  background: #141416;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.canvas-card.is-inverted canvas {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.92) contrast(0.96);
+  transition: filter 0.25s ease;
 }
 
 .canvas-card canvas {

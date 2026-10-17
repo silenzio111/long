@@ -31,6 +31,17 @@
       >
         🛠️ 控制栏
       </button>
+
+      <!-- 夜间反色护眼切换按钮 -->
+      <button 
+        type="button" 
+        class="float-trigger-btn btn-float-invert" 
+        :class="{ active: isInverted }"
+        @click="toggleInvert" 
+        :title="isInverted ? '切换为日间白底明亮模式' : '开启夜间反色暗黑模式'"
+      >
+        {{ isInverted ? '☀️ 明亮' : '🌙 反色' }}
+      </button>
     </div>
 
     <!-- 顶部控制工具栏：默认完全隐藏，通过悬浮按钮呼出 -->
@@ -126,6 +137,17 @@
             {{ isFullscreen ? '退出全屏' : '全屏' }}
           </button>
 
+          <!-- 夜间反色护眼模式 -->
+          <button 
+            type="button" 
+            class="tool-btn btn-invert" 
+            :class="{ active: isInverted }"
+            @click="toggleInvert" 
+            :title="isInverted ? '切换为日间白底明亮模式' : '开启夜间反色暗黑模式'"
+          >
+            {{ isInverted ? '☀️ 明亮' : '🌙 反色' }}
+          </button>
+
           <!-- 离线下载便捷入口 -->
           <a v-if="zhSrc" :href="zhSrc" download class="tool-btn btn-dl" target="_blank" title="下载高清中文 PDF">
             📥 中文
@@ -146,7 +168,7 @@
     <div 
       ref="viewportRef" 
       class="reader-viewport" 
-      :class="[`mode-${viewMode}`]"
+      :class="[`mode-${viewMode}`, { 'is-inverted': isInverted }]"
       @scroll.passive="onViewportScroll"
     >
       <div class="continuous-pages-stream" :style="{ minHeight: `${totalScrollHeight}px` }">
@@ -199,12 +221,14 @@ const props = defineProps<{
 const {
   isSidebarCollapsed,
   isToolbarVisible,
+  isInverted,
   currentPage: stateCurrentPage,
   maxPages: stateMaxPages,
   setOutline,
   setJumpCallback,
   toggleSidebar,
   toggleToolbar,
+  toggleInvert,
   resetReader
 } = useReaderState()
 
@@ -594,6 +618,13 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   transform: translateY(-1px);
 }
 
+.float-trigger-btn.btn-float-invert.active {
+  background: #1e293b;
+  color: #fbbf24;
+  border-color: #f59e0b;
+  opacity: 1;
+}
+
 .btn-float-sidebar {
   position: fixed;
   top: 10px;
@@ -683,7 +714,8 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   cursor: not-allowed;
 }
 
-.tool-btn.btn-zen.active {
+.tool-btn.btn-zen.active,
+.tool-btn.btn-invert.active {
   background: var(--vp-c-brand-soft);
   color: var(--vp-c-brand-1);
   border-color: var(--vp-c-brand-1);
@@ -738,6 +770,11 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   background-color: var(--vp-c-bg-alt);
   padding: 0.8rem 0.3rem 1.5rem 0.3rem;
   scroll-behavior: smooth;
+  transition: background-color 0.25s ease;
+}
+
+.reader-viewport.is-inverted {
+  background-color: #0b0f17 !important;
 }
 
 .continuous-pages-stream {

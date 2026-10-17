@@ -11,9 +11,20 @@ const activeTab = ref<'toc' | 'books'>('toc')
 const isSidebarCollapsed = ref(false)
 const isNavbarVisible = ref(false)
 const isToolbarVisible = ref(false)
+const isInverted = ref(false)
 const currentPage = ref(1)
 const maxPages = ref(1)
 const isReaderActive = ref(false)
+
+// 客户端自动恢复历史反色偏好
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('reader_pdf_inverted')
+    if (saved === 'true') {
+      isInverted.value = true
+    }
+  } catch (_) {}
+}
 
 let jumpCallback: ((p: number) => void) | null = null
 
@@ -42,6 +53,15 @@ export function useReaderState() {
     isToolbarVisible.value = !isToolbarVisible.value
   }
 
+  const toggleInvert = () => {
+    isInverted.value = !isInverted.value
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('reader_pdf_inverted', String(isInverted.value))
+      } catch (_) {}
+    }
+  }
+
   const resetReader = () => {
     outline.value = []
     activeTab.value = 'toc'
@@ -59,6 +79,7 @@ export function useReaderState() {
     isSidebarCollapsed,
     isNavbarVisible,
     isToolbarVisible,
+    isInverted,
     currentPage,
     maxPages,
     isReaderActive,
@@ -68,6 +89,7 @@ export function useReaderState() {
     toggleSidebar,
     toggleNavbar,
     toggleToolbar,
+    toggleInvert,
     resetReader
   }
 }
