@@ -20,10 +20,32 @@ export default defineConfig({
         sidebar: {
           '/books/': [
             {
-              text: '📚 翻译书籍与文献库',
+              text: '📚 翻译文库总览',
               items: [
-                { text: '文库总览与目录', link: '/books/' },
-                { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' }
+                { text: '文库总目录', link: '/books/' }
+              ]
+            },
+            {
+              text: '运筹学与数学优化',
+              items: [
+                { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' },
+                { text: 'MIT 优化方法导论 (521P)', link: '/books/mit-optimization-methods' },
+                { text: '无导数优化导论 (290P)', link: '/books/derivative-free-optimization' }
+              ]
+            },
+            {
+              text: '决策、因果与机器学习',
+              items: [
+                { text: '决策算法导论 (700P)', link: '/books/algorithms-for-decision-making' },
+                { text: '因果推断基础 (289P)', link: '/books/elements-of-causal-inference' },
+                { text: '统计学习导论 ISLP (613P)', link: '/books/islp' }
+              ]
+            },
+            {
+              text: '计算生物学与系统工程',
+              items: [
+                { text: 'MIT 计算生物学讲义 (547P)', link: '/books/mit-computational-biology' },
+                { text: 'ITBook 工程实践合辑 (730P)', link: '/books/itbook-export' }
               ]
             }
           ]
@@ -55,10 +77,32 @@ export default defineConfig({
         sidebar: {
           '/en/books/': [
             {
-              text: '📚 Translated Books & Papers',
+              text: '📚 Library Overview',
               items: [
-                { text: 'Catalog Overview', link: '/en/books/' },
-                { text: 'Operational Research (17P)', link: '/en/books/operational-research' }
+                { text: 'Catalog Overview', link: '/en/books/' }
+              ]
+            },
+            {
+              text: 'Optimization & Operations Research',
+              items: [
+                { text: 'Frontier Paper (17P)', link: '/en/books/operational-research' },
+                { text: 'MIT Optimization (521P)', link: '/en/books/mit-optimization-methods' },
+                { text: 'Derivative-Free Optimization (290P)', link: '/en/books/derivative-free-optimization' }
+              ]
+            },
+            {
+              text: 'Decision, Causality & Learning',
+              items: [
+                { text: 'Decision Making (700P)', link: '/en/books/algorithms-for-decision-making' },
+                { text: 'Causal Inference (289P)', link: '/en/books/elements-of-causal-inference' },
+                { text: 'Statistical Learning ISLP (613P)', link: '/en/books/islp' }
+              ]
+            },
+            {
+              text: 'Computational Biology & Systems',
+              items: [
+                { text: 'MIT Computational Biology (547P)', link: '/en/books/mit-computational-biology' },
+                { text: 'ITBook Engineering (730P)', link: '/en/books/itbook-export' }
               ]
             }
           ]

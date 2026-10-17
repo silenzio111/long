@@ -15,15 +15,15 @@ hero:
 
 features:
   - icon: 📖
-    title: Side-by-side Dual Pane
+    title: "Side-by-side Dual Pane"
     details: Parallel viewing with English original on the left and Chinese translation on the right, fully synchronized.
   - icon: 🎯
-    title: Multi-mode Viewing
+    title: "Multi-mode Viewing"
     details: Seamlessly switch between Dual Columns, Chinese Only, and English Only views to suit your reading needs.
   - icon: ⚡
-    title: On-demand Streaming
+    title: "On-demand Streaming"
     details: Powered by HTTP 206 Partial Content requests, fetching only the current viewport pages instantly.
   - icon: 📥
-    title: Full Offline Downloads
+    title: "Full Offline Downloads"
     details: Direct access to download standalone Chinese, English original, and bilingual alternating PDF editions.
 ---

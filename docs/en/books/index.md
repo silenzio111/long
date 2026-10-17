@@ -1,5 +1,5 @@
 ---
-title: Translated Academic Books & Papers Catalog
+title: "Translated Academic Books & Papers Catalog"
 ---
 
 # Academic Books & Scientific Papers Catalog

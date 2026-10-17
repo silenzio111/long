@@ -68,7 +68,7 @@ const books = [
     fieldZh: '决策算法 / 强化学习',
     fieldEn: 'Decision Making & RL',
     pages: 700,
-    available: false,
+    available: true,
     descZh: '斯坦福大学计算决策权威教材，全面覆盖贝叶斯网络、序贯决策、马尔可夫决策过程与多智能体系统。',
     descEn: 'Authoritative MIT Press textbook from Stanford covering Bayesian networks, MDPs, and multi-agent systems.'
   },
@@ -79,7 +79,7 @@ const books = [
     fieldZh: '因果科学 / 统计学习',
     fieldEn: 'Causal Inference',
     pages: 289,
-    available: false,
+    available: true,
     descZh: '阐明因果图模型、结构因果方程（SCM）与干预分布，连接现代机器学习与统计因果推断的核心理论。',
     descEn: 'Foundational text bridging structural causal models (SCMs), graph models, and modern machine learning.'
   },
@@ -90,7 +90,7 @@ const books = [
     fieldZh: '机器学习 / 数据科学',
     fieldEn: 'Machine Learning & Python',
     pages: 613,
-    available: false,
+    available: true,
     descZh: '数据科学领域的经典巨著 Python 官方新版，涵盖高维回归、树模型、SVM 与深度学习实战。',
     descEn: 'The gold standard statistical learning textbook adapted for Python, covering regression, trees, SVMs, and deep learning.'
   },
@@ -101,7 +101,7 @@ const books = [
     fieldZh: '计算生物学 / 生物信息',
     fieldEn: 'Computational Biology',
     pages: 547,
-    available: false,
+    available: true,
     descZh: '麻省理工学院全套系统性讲义，深入探讨序列比对算法、隐马尔可夫模型、基因调控网络与进化分析。',
     descEn: 'Comprehensive MIT course text on sequence alignment, HMMs, regulatory networks, and genome evolution.'
   },
@@ -112,7 +112,7 @@ const books = [
     fieldZh: '凸优化 / 数学规划',
     fieldEn: 'Optimization Methods',
     pages: 521,
-    available: false,
+    available: true,
     descZh: '系统讲述线性规划对偶理论、非线性凸优化、内点法与大规模分布式优化算法。',
     descEn: 'Rigorous treatise on duality, convex optimization, interior point methods, and large-scale optimization.'
   },
@@ -123,7 +123,7 @@ const books = [
     fieldZh: '计算机系统 / 软件工程',
     fieldEn: 'Computer Systems',
     pages: 730,
-    available: false,
+    available: true,
     descZh: '汇聚计算机体系结构、分布式系统与工程落地的综合性英文技术书籍。',
     descEn: 'Comprehensive technical volume covering computer systems architecture and modern software engineering.'
   },
@@ -134,7 +134,7 @@ const books = [
     fieldZh: '数值优化 / 应用数学',
     fieldEn: 'Numerical Optimization',
     pages: 290,
-    available: false,
+    available: true,
     descZh: '针对目标函数解析梯度缺失或黑箱仿真系统下的前沿求解算法与直接搜索方法。',
     descEn: 'SIAM monograph on modern algorithms for black-box problems and optimization without derivative information.'
   }
