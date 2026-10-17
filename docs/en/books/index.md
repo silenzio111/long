@@ -12,16 +12,9 @@ All documents feature **side-by-side bilingual reading** by default, with instan
 
 ## 📚 Book & Paper Collection
 
-| Title | Field | Pages | Online Reader | Offline |
-| :--- | :--- | :---: | :---: | :---: |
-| **European Journal of Operational Research** | Operations Research / Combinatorial Optimization | 17 P | [Read Online](/en/books/operational-research) | Available |
-| **Algorithms for Decision Making** | Decision Making / Reinforcement Learning | 700 P | Upcoming | In Prep |
-| **Elements of Causal Inference** | Causal Inference & Machine Learning | 289 P | Upcoming | In Prep |
-| **An Introduction to Statistical Learning (ISLP)** | Statistical Learning / Python | 613 P | Upcoming | In Prep |
-| **MIT 6.047: Computational Biology** | Computational Biology & Genomics | 547 P | Upcoming | In Prep |
-| **MIT Optimization Methods** | Convex Optimization & Operations Research | 521 P | Upcoming | In Prep |
-| **ITBook Engineering Collection** | Computer Science & Engineering | 730 P | Upcoming | In Prep |
-| **Derivative-Free Optimization** | Applied Mathematics & Numerical Optimization | 290 P | Upcoming | In Prep |
+<ClientOnly>
+  <BookCatalogGrid lang="en" />
+</ClientOnly>
 
 ---
 

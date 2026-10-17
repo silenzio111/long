@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  base: "/A-Vitepress-Site/",
+  base: "/long/",
   markdown: {
     math: true
   },
@@ -119,7 +119,7 @@ export default defineConfig({
       }
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/silenzio111/A-Vitepress-Site' }
+      { icon: 'github', link: 'https://github.com/silenzio111/long' }
     ]
   }
 })

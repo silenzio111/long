@@ -12,16 +12,9 @@ title: 翻译书籍与文献文库
 
 ## 📚 已收录文献与书籍
 
-| 书名 / 文献名称 | 领域 | 篇幅 | 在线阅读 | 离线版 |
-| :--- | :--- | :--- | :---: | :---: |
-| **European Journal of Operational Research** | 运筹学 / 组合优化 | 17 页 | [立即阅读](/books/operational-research) | 支持下载 |
-| **Algorithms for Decision Making** | 决策算法 / 强化学习 | 700 页 | 待上线 | 准备中 |
-| **Elements of Causal Inference** | 因果推断与机器学习 | 289 页 | 待上线 | 准备中 |
-| **An Introduction to Statistical Learning (ISLP)** | 统计学习 / Python 实战 | 613 页 | 待上线 | 准备中 |
-| **MIT 6.047: Computational Biology** | 计算生物学与基因组学 | 547 页 | 待上线 | 准备中 |
-| **MIT 优化导论 (Optimization Methods)** | 凸优化与运筹学 | 521 页 | 待上线 | 准备中 |
-| **ITBook 技术实战合辑** | 计算机技术与工程 | 730 页 | 待上线 | 准备中 |
-| **无导数优化 (Derivative-Free Optimization)** | 应用数学 / 数值优化 | 290 页 | 待上线 | 准备中 |
+<ClientOnly>
+  <BookCatalogGrid lang="zh" />
+</ClientOnly>
 
 ---
 

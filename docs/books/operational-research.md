@@ -11,9 +11,9 @@ title: European Journal of Operational Research 论文在线双语阅读
 <ClientOnly>
   <DualPdfReader
     title="European Journal of Operational Research"
-    en-src="/A-Vitepress-Site/books/operational-research/en.pdf"
-    zh-src="/A-Vitepress-Site/books/operational-research/zh.pdf"
-    download-dual="/A-Vitepress-Site/books/operational-research/dual.pdf"
+    en-src="/long/books/operational-research/en.pdf"
+    zh-src="/long/books/operational-research/zh.pdf"
+    download-dual="/long/books/operational-research/dual.pdf"
     :initial-page="1"
   />
 </ClientOnly>
