@@ -130,7 +130,7 @@
       </div>
 
       <!-- 首屏加载遮罩 -->
-      <div v-if="loading && (!enPdfDoc && !zhPdfDoc)" class="reader-loading">
+      <div v-if="loading && (!enPdfDoc || !zhPdfDoc)" class="reader-loading">
         <div class="spinner"></div>
       </div>
 
@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import PdfPageRow from './PdfPageRow.vue'
 
 const props = defineProps<{
@@ -189,20 +189,20 @@ const maxPages = computed(() => {
 })
 
 let pdfjsLib: any = null
-let enPdfDoc: any = null
-let zhPdfDoc: any = null
-let basePageWidth = 595
-let basePageHeight = 842
+const enPdfDoc = shallowRef<any>(null)
+const zhPdfDoc = shallowRef<any>(null)
+const basePageWidth = ref(595)
+const basePageHeight = ref(842)
 
-const computedPageWidth = computed(() => Math.floor(basePageWidth * scale.value))
-const computedPageHeight = computed(() => Math.floor(basePageHeight * scale.value))
+const computedPageWidth = computed(() => Math.floor(basePageWidth.value * scale.value))
+const computedPageHeight = computed(() => Math.floor(basePageHeight.value * scale.value))
 const rowHeight = computed(() => computedPageHeight.value + 24)
 
 // 视口动态虚拟窗口：只实例化当前页及相邻的前后 1 页（共 2~3 页）
 const startPage = computed(() => Math.max(1, currentPage.value - 1))
 const endPage = computed(() => Math.min(maxPages.value, currentPage.value + 1))
 const visiblePages = computed(() => {
-  if (!enPdfDoc && !zhPdfDoc) return []
+  if (!enPdfDoc.value && !zhPdfDoc.value) return []
   const list: number[] = []
   for (let p = startPage.value; p <= endPage.value; p++) {
     list.push(p)
@@ -219,10 +219,10 @@ const computeFitScale = () => {
   const viewportWidth = viewportRef.value.clientWidth || (typeof window !== 'undefined' ? window.innerWidth - 220 : 1200)
   if (viewMode.value === 'dual') {
     const colWidth = (viewportWidth - 36) / 2
-    return Math.max(0.45, Math.min(2.5, parseFloat((colWidth / basePageWidth).toFixed(2))))
+    return Math.max(0.45, Math.min(2.5, parseFloat((colWidth / basePageWidth.value).toFixed(2))))
   } else {
     const targetWidth = Math.max(Math.min(viewportWidth - 32, 1400), 400)
-    return Math.max(0.6, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+    return Math.max(0.6, Math.min(3.0, parseFloat((targetWidth / basePageWidth.value).toFixed(2))))
   }
 }
 
@@ -349,8 +349,7 @@ const loadPdfs = async () => {
 
     if (!pdfjsLib) {
       pdfjsLib = await import('pdfjs-dist')
-      // 优先加载本地同源 worker，无 CDN 延迟
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/long/pdf.worker.min.mjs'
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
     }
 
     const loadEn = pdfjsLib.getDocument({
@@ -366,16 +365,16 @@ const loadPdfs = async () => {
     }).promise
 
     const [enDoc, zhDoc] = await Promise.all([loadEn, loadZh])
-    enPdfDoc = enDoc
-    zhPdfDoc = zhDoc
+    enPdfDoc.value = enDoc
+    zhPdfDoc.value = zhDoc
     totalEnPages.value = enDoc.numPages
     totalZhPages.value = zhDoc.numPages
 
     try {
       const probePage = await (zhDoc || enDoc).getPage(1)
       const vp = probePage.getViewport({ scale: 1.0 })
-      basePageWidth = vp.width || 595
-      basePageHeight = vp.height || 842
+      basePageWidth.value = vp.width || 595
+      basePageHeight.value = vp.height || 842
     } catch (_) {}
 
     await nextTick()
