@@ -173,30 +173,130 @@
 }
 
 /* =========================================================
-   阅读器页面宽度与空间合理化最大化布局（Breakout & Wide View）
-   解除 VitePress 默认 688px 内容区限制
+   阅读空间最大化工程：左侧栏收窄 (210px) 与右侧留边仅 2px
+   彻底解除 VitePress 默认 1440px 居中限制及 688px 内容区限制
    ========================================================= */
 
-.VPDoc:has(.dual-pdf-reader) .container,
-.reader-full-page .VPDoc .container {
-  max-width: 100% !important;
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
+:root {
+  --vp-sidebar-width: 210px;
+  --vp-layout-max-width: 100vw;
 }
 
-.VPDoc:has(.dual-pdf-reader) .content,
-.reader-full-page .VPDoc .content {
+/* 侧边栏紧凑排布与精简字号，适配 210px 窄栏 */
+.VPSidebar {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+.VPSidebarItem .text {
+  font-size: 0.84rem !important;
+  line-height: 1.35 !important;
+}
+
+.VPSidebarItem .item {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+}
+
+.VPSidebarGroup .title-text {
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: var(--vp-c-text-2) !important;
+}
+
+/* 屏幕宽度 >= 960px 响应式重写 */
+@media (min-width: 960px) {
+  .VPSidebar {
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 2px !important;
+  }
+
+  .VPNavBar.has-sidebar .title {
+    width: var(--vp-sidebar-width) !important;
+    padding-left: 14px !important;
+    padding-right: 10px !important;
+  }
+
+  .VPNavBar.has-sidebar .content {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 14px !important;
+  }
+}
+
+/* 屏幕宽度 >= 1440px 响应式重写：彻底打碎大屏幕两侧巨大空白留白 */
+@media (min-width: 1440px) {
+  .VPSidebar {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 2px !important;
+  }
+
+  .VPNavBar.has-sidebar .title {
+    padding-left: 14px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPNavBar.has-sidebar .content {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 14px !important;
+  }
+}
+
+/* 文档区 VPDoc 空间利用率最大化：右边距严格限定 2px */
+.VPDoc {
+  padding-top: 14px !important;
+  padding-bottom: 36px !important;
+  padding-left: 8px !important;
+  padding-right: 2px !important;
+  width: 100% !important;
+}
+
+.VPDoc .container {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
   padding: 0 !important;
-  max-width: 100% !important;
+  display: flex !important;
 }
 
-.VPDoc:has(.dual-pdf-reader) .content-container,
-.reader-full-page .VPDoc .content-container {
+.VPDoc .content {
   max-width: 100% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  flex: 1 1 100% !important;
   padding: 0 !important;
+  margin: 0 !important;
 }
 
-.VPDoc:has(.dual-pdf-reader) .aside,
-.reader-full-page .VPDoc .aside {
+.VPDoc .content-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 隐去右侧 aside 栏，让出全部横向像素 */
+.VPDoc .aside,
+.VPDoc.has-aside .aside {
   display: none !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
+
+/* 阅读器组件全宽无边距贴合 */
+.dual-pdf-reader {
+  width: 100% !important;
+  margin: 0.6rem 0 1.2rem 0 !important;
+}
+

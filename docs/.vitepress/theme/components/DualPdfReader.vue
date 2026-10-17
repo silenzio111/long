@@ -270,13 +270,13 @@ const computeFitScale = () => {
   if (!viewportRef.value) return 1.0
   const viewportWidth = viewportRef.value.clientWidth || window.innerWidth
   if (viewMode.value === 'dual') {
-    // 两个栏位，减去 padding 和间隙
-    const colWidth = (viewportWidth - 72) / 2
-    return Math.max(0.65, Math.min(2.2, parseFloat((colWidth / basePageWidth).toFixed(2))))
+    // 两个栏位：减去外边距与中缝间隙 (约 36px)，除以 2，最大化水平可视面积
+    const colWidth = (viewportWidth - 36) / 2
+    return Math.max(0.65, Math.min(2.6, parseFloat((colWidth / basePageWidth).toFixed(2))))
   } else {
-    // 单栏模式，居中铺展
-    const targetWidth = Math.min(viewportWidth - 64, 1150)
-    return Math.max(0.75, Math.min(2.4, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+    // 单栏模式：充分铺满视口宽度，消除人为设定的 1150px 限制
+    const targetWidth = Math.max(300, viewportWidth - 24)
+    return Math.max(0.75, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
   }
 }
 
@@ -559,7 +559,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--vp-c-text-1);
-  max-width: 260px;
+  max-width: 380px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -655,10 +655,10 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   align-items: flex-start;
   justify-content: center;
   background-color: var(--vp-c-bg-alt);
-  min-height: 720px;
-  height: calc(88vh - 120px);
-  padding: 1.5rem 1rem;
-  gap: 1.5rem;
+  min-height: 740px;
+  height: calc(90vh - 90px);
+  padding: 0.8rem 0.3rem;
+  gap: 0.8rem;
   overflow: auto;
 }
 
