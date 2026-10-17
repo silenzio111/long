@@ -352,11 +352,7 @@ body.lock-page-scroll,
 }
 
 /* 隐藏外层多余的文本与底部翻页链接，确保只有 PDF 阅读器呈现 */
-.reader-full-page .vp-doc > h1,
-.reader-full-page .vp-doc > blockquote,
-.reader-full-page .vp-doc > h3,
-.reader-full-page .vp-doc > p,
-.reader-full-page .vp-doc > ul,
+.reader-full-page .vp-doc > *:not(.dual-pdf-reader),
 .reader-full-page .VPDocFooter {
   display: none !important;
 }
