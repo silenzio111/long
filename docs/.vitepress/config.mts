@@ -13,11 +13,19 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: '首页', link: '/' },
+      { text: '📚 翻译书籍库', link: '/books/' },
       { text: 'Pandas 学习', link: '/pandas/desc' },
       { text: '中级计量经济学', link: '/中级计量经济学/desc' },
       { text: '个人博客主站', link: 'https://silenzio111.github.io/' }
     ],
     sidebar: [
+      {
+        text: '📚 翻译书籍与文献库',
+        items: [
+          { text: '文库总览与目录', link: '/books/' },
+          { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' }
+        ]
+      },
       {
         text: 'Pandas learning & practise',
         items: [
