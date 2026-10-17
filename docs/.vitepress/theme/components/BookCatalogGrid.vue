@@ -51,17 +51,6 @@ const isEn = computed(() => {
 
 const books = [
   {
-    id: 'operational-research',
-    titleZh: 'European Journal of Operational Research 运筹学前沿论文',
-    titleEn: 'A Robust Optimization Model for Combinatorial Problems',
-    fieldZh: '运筹学 / 组合优化',
-    fieldEn: 'Operations Research',
-    pages: 17,
-    available: true,
-    descZh: '发表于运筹学顶刊 EJOR 的前沿学术成果，讨论不确定性环境下的鲁棒优化与离散决策模型。',
-    descEn: 'Frontier research paper from EJOR investigating robust optimization models and discrete decisions under uncertainty.'
-  },
-  {
     id: 'algorithms-for-decision-making',
     titleZh: '决策算法导论 (Algorithms for Decision Making)',
     titleEn: 'Algorithms for Decision Making (MIT Press)',

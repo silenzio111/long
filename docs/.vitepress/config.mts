@@ -28,7 +28,6 @@ export default defineConfig({
             {
               text: '运筹学与数学优化',
               items: [
-                { text: '运筹学前沿论文 (17P)', link: '/books/operational-research' },
                 { text: 'MIT 优化方法导论 (521P)', link: '/books/mit-optimization-methods' },
                 { text: '无导数优化导论 (290P)', link: '/books/derivative-free-optimization' }
               ]
@@ -85,7 +84,6 @@ export default defineConfig({
             {
               text: 'Optimization & Operations Research',
               items: [
-                { text: 'Frontier Paper (17P)', link: '/en/books/operational-research' },
                 { text: 'MIT Optimization (521P)', link: '/en/books/mit-optimization-methods' },
                 { text: 'Derivative-Free Optimization (290P)', link: '/en/books/derivative-free-optimization' }
               ]
