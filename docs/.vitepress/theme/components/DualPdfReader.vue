@@ -11,6 +11,14 @@
     <div class="reader-toolbar">
       <div class="toolbar-section title-section">
         <span class="book-title" :title="title">{{ title || t.defaultTitle }}</span>
+        <button 
+          type="button" 
+          class="btn-info" 
+          @click="showInfoModal = !showInfoModal" 
+          :title="t.infoTitle"
+        >
+          ℹ️ {{ t.infoBtn }}
+        </button>
       </div>
 
       <!-- 视图模式切换 -->
@@ -23,14 +31,6 @@
             :title="t.dualTitle"
           >
             {{ t.dualMode }}
-          </button>
-          <button 
-            type="button"
-            :class="['mode-btn', { active: viewMode === 'interleaved' }]" 
-            @click="setMode('interleaved')"
-            :title="t.interleavedTitle"
-          >
-            {{ t.interleavedMode }}
           </button>
           <button 
             type="button"
@@ -57,7 +57,7 @@
           type="button" 
           class="ctrl-btn" 
           :disabled="currentPage <= 1 || loading" 
-          @click="prevPage" 
+          @click="scrollToPage(currentPage - 1)" 
           :title="t.prevTitle"
         >
           {{ t.prev }}
@@ -79,7 +79,7 @@
           type="button" 
           class="ctrl-btn" 
           :disabled="currentPage >= maxPages || loading" 
-          @click="nextPage" 
+          @click="scrollToPage(currentPage + 1)" 
           :title="t.nextTitle"
         >
           {{ t.next }}
@@ -91,11 +91,11 @@
         <button type="button" class="tool-btn" @click="autoFitWidth" :title="t.fitWidth">
           {{ t.fitWidthBtn }}
         </button>
-        <button type="button" class="tool-btn" @click="zoomOut" :title="t.zoomOut" :disabled="scale <= 0.5">
+        <button type="button" class="tool-btn" @click="zoomOut" :title="t.zoomOut" :disabled="scale <= 0.45">
           －
         </button>
         <span class="zoom-value">{{ Math.round(scale * 100) }}%</span>
-        <button type="button" class="tool-btn" @click="zoomIn" :title="t.zoomIn" :disabled="scale >= 2.5">
+        <button type="button" class="tool-btn" @click="zoomIn" :title="t.zoomIn" :disabled="scale >= 2.6">
           ＋
         </button>
         <button 
@@ -113,65 +113,54 @@
       </div>
     </div>
 
-    <!-- 主展示视窗 -->
-    <div ref="viewportRef" class="reader-viewport" :class="[`mode-${viewMode}`]">
-      <!-- 英文栏 -->
-      <div v-show="viewMode === 'dual' || viewMode === 'en'" class="canvas-wrapper en-wrapper">
-        <div class="column-badge">{{ t.enBadge }} (Page {{ currentPage }})</div>
-        <div class="canvas-box">
-          <canvas ref="enCanvasRef"></canvas>
-        </div>
-      </div>
+    <!-- 连续垂直自然滚动阅读视窗 -->
+    <div 
+      ref="viewportRef" 
+      class="reader-viewport" 
+      :class="[`mode-${viewMode}`]"
+      @scroll.passive="onViewportScroll"
+    >
+      <div class="continuous-pages-stream">
+        <div 
+          v-for="p in maxPages" 
+          :key="p" 
+          :id="`page-row-${p}`"
+          :data-page="p"
+          class="continuous-page-row"
+          :style="{ minHeight: `${computedPageHeight + 36}px` }"
+        >
+          <!-- 悬浮页码指示 -->
+          <div class="page-row-header">
+            <span class="page-badge">第 {{ p }} 页 / 共 {{ maxPages }} 页</span>
+          </div>
 
-      <!-- 中文栏 -->
-      <div v-show="viewMode === 'dual' || viewMode === 'zh'" class="canvas-wrapper zh-wrapper">
-        <div class="column-badge badge-zh">{{ t.zhBadge }} (Page {{ currentPage }})</div>
-        <div class="canvas-box">
-          <canvas ref="zhCanvasRef"></canvas>
-        </div>
-      </div>
-
-      <!-- 中英段落纵向交替排布视窗 -->
-      <div v-show="viewMode === 'interleaved'" class="interleaved-wrapper">
-        <div v-if="paragraphSegments.length === 0 && !loading" class="empty-segments">
-          <span>当前页面未提取出独立文本段落，请切换至双栏或单语模式查看</span>
-        </div>
-        <div v-else class="interleaved-list">
-          <div 
-            v-for="(seg, idx) in paragraphSegments" 
-            :key="idx" 
-            class="para-pair-card"
-          >
-            <!-- 英文段落切块 -->
-            <div class="para-unit unit-en">
-              <div class="unit-meta">
-                <span class="unit-badge badge-en">EN · {{ idx + 1 }}</span>
-                <span class="unit-note">{{ t.paraEnBadge }}</span>
-              </div>
-              <div class="slice-canvas-wrapper">
-                <canvas :ref="el => registerSliceCanvas(el, 'en', idx)"></canvas>
-              </div>
+          <!-- 双栏或单栏页面画布组 -->
+          <div class="page-canvases-group">
+            <!-- 英文原版页 -->
+            <div 
+              v-show="viewMode === 'dual' || viewMode === 'en'" 
+              class="canvas-card en-card"
+              :style="{ width: `${computedPageWidth}px`, height: `${computedPageHeight}px` }"
+            >
+              <div v-if="viewMode === 'dual'" class="col-indicator">{{ t.enBadge }}</div>
+              <canvas :ref="el => registerCanvas(el, 'en', p)"></canvas>
             </div>
 
-            <!-- 分割线 -->
-            <div class="pair-divider"></div>
-
-            <!-- 中文段落切块 -->
-            <div class="para-unit unit-zh">
-              <div class="unit-meta">
-                <span class="unit-badge badge-zh">ZH · {{ idx + 1 }}</span>
-                <span class="unit-note">{{ t.paraZhBadge }}</span>
-              </div>
-              <div class="slice-canvas-wrapper">
-                <canvas :ref="el => registerSliceCanvas(el, 'zh', idx)"></canvas>
-              </div>
+            <!-- 中文译本页 -->
+            <div 
+              v-show="viewMode === 'dual' || viewMode === 'zh'" 
+              class="canvas-card zh-card"
+              :style="{ width: `${computedPageWidth}px`, height: `${computedPageHeight}px` }"
+            >
+              <div v-if="viewMode === 'dual'" class="col-indicator col-indicator-zh">{{ t.zhBadge }}</div>
+              <canvas :ref="el => registerCanvas(el, 'zh', p)"></canvas>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 加载遮罩 -->
-      <div v-if="loading" class="reader-loading">
+      <!-- 首屏加载遮罩 -->
+      <div v-if="loading && renderedKeys.size === 0" class="reader-loading">
         <div class="spinner"></div>
         <span>{{ t.loadingText(currentPage) }}</span>
       </div>
@@ -190,11 +179,43 @@
         <a v-if="enSrc" :href="enSrc" download class="dl-link" target="_blank">{{ t.dlEn }}</a>
       </div>
     </div>
+
+    <!-- 本书导读与文献信息模态框 -->
+    <div v-if="showInfoModal" class="info-modal-backdrop" @click.self="showInfoModal = false">
+      <div class="info-modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">📖 {{ title || t.defaultTitle }}</h3>
+          <button class="modal-close" @click="showInfoModal = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="info-row">
+            <span class="info-label">文献规模：</span>
+            <span>共 {{ maxPages }} 页（中英双语 1:1 同步对照）</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">阅读模式：</span>
+            <span>中英双栏同步对照、仅中文译本专注、仅英文原版精读</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">翻页交互：</span>
+            <span>文档网页锁定不滚动，在阅读窗内上下滑动鼠标滚轮或触控板即可平滑自然翻页；亦可使用键盘方向键 (↑ / ↓) 或顶栏页码框快速跳转。</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">流式加速：</span>
+            <span>依托 HTTP 206 字节流切片与按需虚拟渲染，毫秒级即开即看。</span>
+          </div>
+          <div class="modal-downloads">
+            <a v-if="zhSrc" :href="zhSrc" download class="modal-dl-btn" target="_blank">📥 {{ t.dlZh }}</a>
+            <a v-if="enSrc" :href="enSrc" download class="modal-dl-btn" target="_blank">📥 {{ t.dlEn }}</a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute } from 'vitepress'
 
 const props = defineProps<{
@@ -214,20 +235,18 @@ const currentLang = computed<'zh' | 'en'>(() => {
 
 const i18n = {
   zh: {
-    defaultTitle: '在线双语阅读器',
+    defaultTitle: '在线双语学术教材阅读器',
     dualMode: '中英双栏',
-    dualTitle: '双栏中英对照',
-    interleavedMode: '中英交替',
-    interleavedTitle: '段落级纵向中英交替排布（一段英文一段中文）',
+    dualTitle: '双栏中英对照并排滚动',
     zhMode: '仅中文',
-    zhTitle: '仅显示中文译本',
+    zhTitle: '仅显示中文译本连续滚动',
     enMode: '仅英文',
-    enTitle: '仅显示英文原版',
+    enTitle: '仅显示英文原版连续滚动',
     prev: '上一页',
-    prevTitle: '上一页 (← 快捷键)',
+    prevTitle: '滚动到上一页 (↑ 快捷键)',
     next: '下一页',
-    nextTitle: '下一页 (→ 快捷键)',
-    fitWidth: '自动充满宽度',
+    nextTitle: '滚动到下一页 (↓ 快捷键)',
+    fitWidth: '自动铺满宽度',
     fitWidthBtn: '铺满宽度',
     zoomIn: '放大',
     zoomOut: '缩小',
@@ -237,29 +256,27 @@ const i18n = {
     exitZenBtn: '退出宽屏',
     fullscreen: '系统全屏',
     exitFullscreen: '退出全屏',
+    infoBtn: '关于本书',
+    infoTitle: '查看文献信息与阅读说明',
     enBadge: '英文原版',
     zhBadge: '中文译本',
-    paraEnBadge: '英文原版段落',
-    paraZhBadge: '中文译文段落',
     loadingText: (p: number) => `正在加载第 ${p} 页...`,
-    tipNav: '提示：支持键盘左右方向键 (← / →) 翻页，快捷按“中英交替”享受纵向一段中文一段英文的自然阅读体验',
-    dlZh: '下载完整中文版',
-    dlEn: '下载英文原版'
+    tipNav: '提示：在阅读窗内上下滑动滚轮或触控板可连续平滑翻页，外层网页不滚动',
+    dlZh: '下载高清中文版 PDF',
+    dlEn: '下载英文原版 PDF'
   },
   en: {
-    defaultTitle: 'Online Bilingual Reader',
+    defaultTitle: 'Online Bilingual Academic Reader',
     dualMode: 'Dual Columns',
-    dualTitle: 'Side-by-side bilingual view',
-    interleavedMode: 'Interleaved',
-    interleavedTitle: 'Vertical paragraph-by-paragraph alternating view',
+    dualTitle: 'Side-by-side continuous bilingual scrolling',
     zhMode: 'Chinese Only',
-    zhTitle: 'View Chinese translation only',
+    zhTitle: 'Chinese translation continuous scroll',
     enMode: 'English Only',
-    enTitle: 'View original English only',
+    enTitle: 'English original continuous scroll',
     prev: 'Prev',
-    prevTitle: 'Previous page (← key)',
+    prevTitle: 'Scroll to previous page (↑ key)',
     next: 'Next',
-    nextTitle: 'Next page (→ key)',
+    nextTitle: 'Scroll to next page (↓ key)',
     fitWidth: 'Fit page to available width',
     fitWidthBtn: 'Fit Width',
     zoomIn: 'Zoom in',
@@ -270,12 +287,12 @@ const i18n = {
     exitZenBtn: 'Exit Zen',
     fullscreen: 'Fullscreen',
     exitFullscreen: 'Exit Fullscreen',
+    infoBtn: 'About Book',
+    infoTitle: 'View book metadata and instructions',
     enBadge: 'Original English',
     zhBadge: 'Chinese Translation',
-    paraEnBadge: 'Original English Paragraph',
-    paraZhBadge: 'Chinese Translation Paragraph',
     loadingText: (p: number) => `Loading page ${p}...`,
-    tipNav: 'Tip: Use arrow keys (← / →) to turn pages. Click "Interleaved" for vertical paragraph-by-paragraph reading.',
+    tipNav: 'Tip: Scroll inside the reader window to turn pages continuously. The outer webpage does not scroll.',
     dlZh: 'Download Chinese PDF',
     dlEn: 'Download English PDF'
   }
@@ -285,25 +302,8 @@ const t = computed(() => i18n[currentLang.value])
 
 const containerRef = ref<HTMLElement | null>(null)
 const viewportRef = ref<HTMLElement | null>(null)
-const enCanvasRef = ref<HTMLCanvasElement | null>(null)
-const zhCanvasRef = ref<HTMLCanvasElement | null>(null)
 
-interface ParagraphSegment {
-  index: number
-  startY: number
-  zhEndY: number
-  enEndY: number
-}
-
-const paragraphSegments = ref<ParagraphSegment[]>([])
-const sliceCanvases = ref<{ [key: string]: HTMLCanvasElement | null }>({})
-const registerSliceCanvas = (el: any, lang: 'en' | 'zh', index: number) => {
-  if (el) {
-    sliceCanvases.value[`${lang}_${index}`] = el as HTMLCanvasElement
-  }
-}
-
-const viewMode = ref<'dual' | 'interleaved' | 'zh' | 'en'>('dual')
+const viewMode = ref<'dual' | 'zh' | 'en'>('dual')
 const currentPage = ref(props.initialPage || 1)
 const inputPage = ref(props.initialPage || 1)
 const totalEnPages = ref(0)
@@ -314,50 +314,291 @@ const loading = ref(false)
 const errorMessage = ref('')
 const isFullscreen = ref(false)
 const isZenMode = ref(false)
+const showInfoModal = ref(false)
 
 const maxPages = computed(() => {
-  if (viewMode.value === 'en') return totalEnPages.value
-  if (viewMode.value === 'zh') return totalZhPages.value
-  return Math.min(totalEnPages.value || 9999, totalZhPages.value || 9999) || totalEnPages.value || totalZhPages.value
+  if (viewMode.value === 'en') return totalEnPages.value || 1
+  if (viewMode.value === 'zh') return totalZhPages.value || 1
+  return Math.min(totalEnPages.value || 9999, totalZhPages.value || 9999) || totalEnPages.value || totalZhPages.value || 1
 })
 
 let pdfjsLib: any = null
 let enPdfDoc: any = null
 let zhPdfDoc: any = null
 let basePageWidth = 595
-let currentRenderTasks: any[] = []
+let basePageHeight = 842
 
-const cancelCurrentTasks = () => {
-  currentRenderTasks.forEach(task => {
-    try {
-      if (task && task.cancel) task.cancel()
-    } catch (_) {}
-  })
-  currentRenderTasks = []
+// 页面 Canvas 映射表与已渲染状态集合
+const canvasMap: { [key: string]: HTMLCanvasElement } = {}
+const renderedKeys = reactive(new Set<string>())
+let activeRenderTasks: any[] = []
+
+const registerCanvas = (el: any, lang: 'en' | 'zh', pageNum: number) => {
+  const key = `${lang}_${pageNum}`
+  if (el) {
+    canvasMap[key] = el as HTMLCanvasElement
+    // 若该页在当前视口可见缓冲区内且未渲染，则触发渲染
+    if (Math.abs(pageNum - currentPage.value) <= 2) {
+      renderPage(pageNum)
+    }
+  } else {
+    delete canvasMap[key]
+  }
 }
+
+const computedPageWidth = computed(() => {
+  return Math.floor(basePageWidth * scale.value)
+})
+
+const computedPageHeight = computed(() => {
+  return Math.floor(basePageHeight * scale.value)
+})
 
 const computeFitScale = () => {
   if (!viewportRef.value) return 1.0
   const viewportWidth = viewportRef.value.clientWidth || window.innerWidth
   if (viewMode.value === 'dual') {
-    // 两个栏位：减去外边距与中缝间隙 (约 36px)，除以 2，最大化水平可视面积
-    const colWidth = (viewportWidth - 36) / 2
-    return Math.max(0.65, Math.min(2.6, parseFloat((colWidth / basePageWidth).toFixed(2))))
-  } else if (viewMode.value === 'interleaved') {
-    // 中英交替纵向单列卡片：居中铺展，充分利用宽屏
-    const targetWidth = Math.min(viewportWidth - 36, 1020)
-    return Math.max(0.8, Math.min(2.5, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+    // 双栏对照：视口总宽减去边距 (约 48px)，除以 2，将横向利用率拉满
+    const colWidth = (viewportWidth - 48) / 2
+    return Math.max(0.55, Math.min(2.5, parseFloat((colWidth / basePageWidth).toFixed(2))))
   } else {
-    // 单栏模式：充分铺满视口宽度，消除人为设定的 1150px 限制
-    const targetWidth = Math.max(300, viewportWidth - 24)
-    return Math.max(0.75, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
+    // 单栏模式：减去页边距，居中铺展
+    const targetWidth = Math.min(viewportWidth - 36, 1200)
+    return Math.max(0.7, Math.min(3.0, parseFloat((targetWidth / basePageWidth).toFixed(2))))
   }
 }
 
 const autoFitWidth = () => {
   isAutoScaled.value = true
   scale.value = computeFitScale()
-  renderCurrentPage()
+  renderedKeys.clear()
+  renderBufferPages(currentPage.value)
+  scrollToPage(currentPage.value, false)
+}
+
+const renderDocPage = async (doc: any, pageNum: number, canvas: HTMLCanvasElement, dpr: number) => {
+  if (!doc || !canvas || pageNum < 1 || pageNum > doc.numPages) return
+  const page = await doc.getPage(pageNum)
+  const viewport = page.getViewport({ scale: scale.value })
+
+  canvas.width = Math.floor(viewport.width * dpr)
+  canvas.height = Math.floor(viewport.height * dpr)
+  canvas.style.width = `${Math.floor(viewport.width)}px`
+  canvas.style.height = `${Math.floor(viewport.height)}px`
+
+  const ctx = canvas.getContext('2d', { alpha: false })
+  if (!ctx) return
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+  const task = page.render({
+    canvasContext: ctx,
+    viewport: viewport
+  })
+  activeRenderTasks.push(task)
+  await task.promise
+}
+
+const renderPage = async (p: number) => {
+  if (p < 1 || p > maxPages.value) return
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+
+  // 渲染英文页
+  if (viewMode.value === 'dual' || viewMode.value === 'en') {
+    const key = `en_${p}`
+    const cacheKey = `${key}_${scale.value}`
+    if (enPdfDoc && !renderedKeys.has(cacheKey)) {
+      const canvas = canvasMap[key]
+      if (canvas) {
+        renderedKeys.add(cacheKey)
+        renderDocPage(enPdfDoc, p, canvas, dpr).catch(() => {
+          renderedKeys.delete(cacheKey)
+        })
+      }
+    }
+  }
+
+  // 渲染中文页
+  if (viewMode.value === 'dual' || viewMode.value === 'zh') {
+    const key = `zh_${p}`
+    const cacheKey = `${key}_${scale.value}`
+    if (zhPdfDoc && !renderedKeys.has(cacheKey)) {
+      const canvas = canvasMap[key]
+      if (canvas) {
+        renderedKeys.add(cacheKey)
+        renderDocPage(zhPdfDoc, p, canvas, dpr).catch(() => {
+          renderedKeys.delete(cacheKey)
+        })
+      }
+    }
+  }
+}
+
+// 释放超出可视视口缓冲区的 Canvas 显存，防止长文档内存溢出
+const cleanDistantPages = (centerPage: number) => {
+  for (let p = 1; p <= maxPages.value; p++) {
+    if (Math.abs(p - centerPage) > 4) {
+      const enCacheKey = `en_${p}_${scale.value}`
+      if (renderedKeys.has(enCacheKey)) {
+        renderedKeys.delete(enCacheKey)
+        const c = canvasMap[`en_${p}`]
+        if (c) {
+          c.width = 0
+          c.height = 0
+        }
+      }
+      const zhCacheKey = `zh_${p}_${scale.value}`
+      if (renderedKeys.has(zhCacheKey)) {
+        renderedKeys.delete(zhCacheKey)
+        const c = canvasMap[`zh_${p}`]
+        if (c) {
+          c.width = 0
+          c.height = 0
+        }
+      }
+    }
+  }
+}
+
+const renderBufferPages = (centerPage: number) => {
+  const start = Math.max(1, centerPage - 2)
+  const end = Math.min(maxPages.value, centerPage + 2)
+  for (let p = start; p <= end; p++) {
+    renderPage(p)
+  }
+  cleanDistantPages(centerPage)
+}
+
+let scrollDebounceTimer: any = null
+const onViewportScroll = () => {
+  if (!viewportRef.value) return
+  const scrollTop = viewportRef.value.scrollTop
+  const rowHeight = computedPageHeight.value + 36
+  const curPage = Math.min(maxPages.value, Math.max(1, Math.floor((scrollTop + 100) / rowHeight) + 1))
+  
+  if (currentPage.value !== curPage) {
+    currentPage.value = curPage
+    inputPage.value = curPage
+  }
+
+  clearTimeout(scrollDebounceTimer)
+  scrollDebounceTimer = setTimeout(() => {
+    renderBufferPages(currentPage.value)
+  }, 40)
+}
+
+const scrollToPage = (p: number, smooth = true) => {
+  if (!viewportRef.value) return
+  p = Math.min(maxPages.value, Math.max(1, p))
+  const rowHeight = computedPageHeight.value + 36
+  const targetTop = (p - 1) * rowHeight
+
+  viewportRef.value.scrollTo({
+    top: targetTop,
+    behavior: smooth ? 'smooth' : 'auto'
+  })
+
+  currentPage.value = p
+  inputPage.value = p
+  renderBufferPages(p)
+}
+
+const onPageInputChange = () => {
+  let val = parseInt(String(inputPage.value), 10)
+  if (isNaN(val)) val = 1
+  if (val < 1) val = 1
+  if (val > maxPages.value) val = maxPages.value
+  scrollToPage(val)
+}
+
+const setMode = (mode: 'dual' | 'zh' | 'en') => {
+  viewMode.value = mode
+  scale.value = computeFitScale()
+  renderedKeys.clear()
+  nextTick(() => {
+    renderBufferPages(currentPage.value)
+    scrollToPage(currentPage.value, false)
+  })
+}
+
+const zoomIn = () => {
+  isAutoScaled.value = false
+  if (scale.value < 2.6) {
+    scale.value = parseFloat((scale.value + 0.15).toFixed(2))
+    renderedKeys.clear()
+    renderBufferPages(currentPage.value)
+    scrollToPage(currentPage.value, false)
+  }
+}
+
+const zoomOut = () => {
+  isAutoScaled.value = false
+  if (scale.value > 0.45) {
+    scale.value = parseFloat((scale.value - 0.15).toFixed(2))
+    renderedKeys.clear()
+    renderBufferPages(currentPage.value)
+    scrollToPage(currentPage.value, false)
+  }
+}
+
+const toggleZenMode = () => {
+  isZenMode.value = !isZenMode.value
+  nextTick(() => {
+    scale.value = computeFitScale()
+    renderedKeys.clear()
+    renderBufferPages(currentPage.value)
+    scrollToPage(currentPage.value, false)
+  })
+}
+
+const toggleFullscreen = () => {
+  if (!containerRef.value) return
+  if (!document.fullscreenElement) {
+    containerRef.value.requestFullscreen().catch(() => {})
+  } else {
+    document.exitFullscreen().catch(() => {})
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+  scale.value = computeFitScale()
+  renderedKeys.clear()
+  renderBufferPages(currentPage.value)
+  scrollToPage(currentPage.value, false)
+}
+
+const handleResize = () => {
+  if (isAutoScaled.value) {
+    scale.value = computeFitScale()
+    renderedKeys.clear()
+    renderBufferPages(currentPage.value)
+  }
+}
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault()
+    scrollToPage(currentPage.value - 1)
+  } else if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+    e.preventDefault()
+    scrollToPage(currentPage.value + 1)
+  } else if (e.key === 'Home') {
+    e.preventDefault()
+    scrollToPage(1)
+  } else if (e.key === 'End') {
+    e.preventDefault()
+    scrollToPage(maxPages.value)
+  } else if (e.key === 'Escape') {
+    if (showInfoModal.value) {
+      showInfoModal.value = false
+    } else if (isZenMode.value) {
+      isZenMode.value = false
+      nextTick(() => autoFitWidth())
+    }
+  }
 }
 
 const loadPdfs = async () => {
@@ -389,336 +630,27 @@ const loadPdfs = async () => {
     totalEnPages.value = enDoc.numPages
     totalZhPages.value = zhDoc.numPages
 
-    // 探测基准页面尺寸以计算最佳自适应比例
+    // 探测基准页面尺寸
     try {
       const probePage = await (zhDoc || enDoc).getPage(1)
       const vp = probePage.getViewport({ scale: 1.0 })
       basePageWidth = vp.width || 595
+      basePageHeight = vp.height || 842
     } catch (_) {}
 
     await nextTick()
     scale.value = computeFitScale()
-    await renderCurrentPage()
+    renderBufferPages(currentPage.value)
+
+    if (props.initialPage && props.initialPage > 1) {
+      await nextTick()
+      scrollToPage(props.initialPage, false)
+    }
   } catch (err: any) {
     console.error('PDF 加载错误:', err)
     errorMessage.value = `PDF 文档加载失败: ${err?.message || '网络或格式异常'}`
   } finally {
     loading.value = false
-  }
-}
-
-const renderSinglePage = async (doc: any, pageNum: number, canvas: HTMLCanvasElement | null) => {
-  if (!doc || !canvas) return
-  if (pageNum < 1 || pageNum > doc.numPages) return
-
-  const page = await doc.getPage(pageNum)
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const viewport = page.getViewport({ scale: scale.value })
-
-  canvas.width = Math.floor(viewport.width * dpr)
-  canvas.height = Math.floor(viewport.height * dpr)
-  canvas.style.width = `${Math.floor(viewport.width)}px`
-  canvas.style.height = `${Math.floor(viewport.height)}px`
-
-  const ctx = canvas.getContext('2d', { alpha: false })
-  if (!ctx) return
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-
-  const renderTask = page.render({
-    canvasContext: ctx,
-    viewport: viewport
-  })
-  currentRenderTasks.push(renderTask)
-  await renderTask.promise
-}
-
-const renderInterleavedPage = async () => {
-  if (!enPdfDoc || !zhPdfDoc) return
-
-  const [enPage, zhPage] = await Promise.all([
-    enPdfDoc.getPage(currentPage.value),
-    zhPdfDoc.getPage(currentPage.value)
-  ])
-
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const vpEn = enPage.getViewport({ scale: scale.value })
-  const vpZh = zhPage.getViewport({ scale: scale.value })
-
-  // 1. 离线渲染完整英文页与中文页到内存画布
-  const offEn = document.createElement('canvas')
-  offEn.width = Math.floor(vpEn.width * dpr)
-  offEn.height = Math.floor(vpEn.height * dpr)
-  const ctxEn = offEn.getContext('2d', { alpha: false })!
-  ctxEn.imageSmoothingEnabled = true
-  ctxEn.imageSmoothingQuality = 'high'
-  ctxEn.setTransform(dpr, 0, 0, dpr, 0, 0)
-  const taskEn = enPage.render({ canvasContext: ctxEn, viewport: vpEn })
-
-  const offZh = document.createElement('canvas')
-  offZh.width = Math.floor(vpZh.width * dpr)
-  offZh.height = Math.floor(vpZh.height * dpr)
-  const ctxZh = offZh.getContext('2d', { alpha: false })!
-  ctxZh.imageSmoothingEnabled = true
-  ctxZh.imageSmoothingQuality = 'high'
-  ctxZh.setTransform(dpr, 0, 0, dpr, 0, 0)
-  const taskZh = zhPage.render({ canvasContext: ctxZh, viewport: vpZh })
-
-  currentRenderTasks.push(taskEn, taskZh)
-
-  // 2. 提取文本内容以计算段落起止坐标（基准 scale=1.0）
-  const [zhTc, enTc] = await Promise.all([
-    zhPage.getTextContent(),
-    enPage.getTextContent(),
-    taskEn.promise,
-    taskZh.promise
-  ])
-
-  const baseVpZh = zhPage.getViewport({ scale: 1.0 })
-  const baseVpEn = enPage.getViewport({ scale: 1.0 })
-
-  const mapItems = (tc: any, baseVp: any) => {
-    return tc.items.map((it: any) => {
-      const [vx, vy] = baseVp.convertToViewportPoint(it.transform[4], it.transform[5])
-      const h = it.height || 10
-      const w = it.width || 0
-      return {
-        str: it.str,
-        x0: vx,
-        x1: vx + w,
-        topY: vy - h,
-        bottomY: vy
-      }
-    }).filter((it: any) => it.str && it.str.trim() && it.topY > 40 && it.bottomY < baseVp.height - 30)
-  }
-
-  const zhItems = mapItems(zhTc, baseVpZh)
-  const enItems = mapItems(enTc, baseVpEn)
-  zhItems.sort((a: any, b: any) => a.topY - b.topY)
-  enItems.sort((a: any, b: any) => a.topY - b.topY)
-
-  let segments: ParagraphSegment[] = []
-
-  if (zhItems.length === 0) {
-    // 页面无文本（例如封面或纯插图页），整页作为单个切片呈现
-    segments = [{
-      index: 0,
-      startY: 42,
-      zhEndY: baseVpZh.height - 35,
-      enEndY: baseVpEn.height - 35
-    }]
-  } else {
-    // 按 Y 轴将中文 items 聚类为文本行
-    const lines: { topY: number; bottomY: number; text: string }[] = []
-    for (const it of zhItems) {
-      const lastLine = lines[lines.length - 1]
-      if (!lastLine || Math.abs(it.topY - lastLine.topY) > 3.5) {
-        lines.push({ topY: it.topY, bottomY: it.bottomY, text: it.str })
-      } else {
-        lastLine.text += it.str
-        if (it.bottomY > lastLine.bottomY) lastLine.bottomY = it.bottomY
-      }
-    }
-
-    // 检测段落间隔（行间距突变处即为段落切分点）
-    const avgLineHeight = lines.length > 1 
-      ? (lines[lines.length - 1].topY - lines[0].topY) / (lines.length - 1) 
-      : 14
-    const breakThreshold = Math.max(14, avgLineHeight * 1.35)
-
-    const rawParas: { startY: number; endY: number }[] = []
-    let curP = { startY: lines[0].topY, endY: lines[0].bottomY }
-    for (let i = 1; i < lines.length; i++) {
-      const gap = lines[i].topY - lines[i - 1].bottomY
-      if (gap > 6 || (lines[i].topY - lines[i - 1].topY) > breakThreshold) {
-        rawParas.push(curP)
-        curP = { startY: lines[i].topY, endY: lines[i].bottomY }
-      } else {
-        curP.endY = Math.max(curP.endY, lines[i].bottomY)
-      }
-    }
-    rawParas.push(curP)
-
-    // 中英段落起始严格对齐，结束位置分别按中英文各自实际范围裁切
-    for (let i = 0; i < rawParas.length; i++) {
-      const p = rawParas[i]
-      const nextStart = i + 1 < rawParas.length ? rawParas[i + 1].startY : baseVpZh.height - 35
-
-      const matchingEn = enItems.filter((it: any) => it.topY >= p.startY - 8 && it.topY < nextStart - 4)
-      const enStartY = matchingEn.length > 0 ? Math.min(...matchingEn.map((it: any) => it.topY)) : p.startY
-      const enEndY = matchingEn.length > 0 ? Math.max(...matchingEn.map((it: any) => it.bottomY)) : p.endY
-
-      // 起始位置对齐
-      const alignedStartY = Math.min(p.startY, enStartY)
-
-      segments.push({
-        index: i,
-        startY: alignedStartY,
-        zhEndY: p.endY,
-        enEndY: enEndY
-      })
-    }
-  }
-
-  sliceCanvases.value = {}
-  paragraphSegments.value = segments
-  await nextTick()
-
-  // 3. 将各段落裁剪并绘制到对应 slice canvas 上
-  const padY = 5
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]
-    const enEl = sliceCanvases.value[`en_${i}`]
-    const zhEl = sliceCanvases.value[`zh_${i}`]
-
-    if (enEl) {
-      const srcY = Math.max(0, seg.startY - padY) * scale.value * dpr
-      const srcH = Math.max(20, (seg.enEndY - seg.startY + 2 * padY)) * scale.value * dpr
-      const srcW = offEn.width
-      enEl.width = Math.floor(srcW)
-      enEl.height = Math.floor(srcH)
-      enEl.style.width = '100%'
-      enEl.style.height = `${Math.floor(srcH / dpr)}px`
-      const ctx = enEl.getContext('2d')
-      if (ctx) {
-        ctx.drawImage(offEn, 0, Math.floor(srcY), Math.floor(srcW), Math.floor(srcH), 0, 0, Math.floor(srcW), Math.floor(srcH))
-      }
-    }
-
-    if (zhEl) {
-      const srcY = Math.max(0, seg.startY - padY) * scale.value * dpr
-      const srcH = Math.max(20, (seg.zhEndY - seg.startY + 2 * padY)) * scale.value * dpr
-      const srcW = offZh.width
-      zhEl.width = Math.floor(srcW)
-      zhEl.height = Math.floor(srcH)
-      zhEl.style.width = '100%'
-      zhEl.style.height = `${Math.floor(srcH / dpr)}px`
-      const ctx = zhEl.getContext('2d')
-      if (ctx) {
-        ctx.drawImage(offZh, 0, Math.floor(srcY), Math.floor(srcW), Math.floor(srcH), 0, 0, Math.floor(srcW), Math.floor(srcH))
-      }
-    }
-  }
-}
-
-const renderCurrentPage = async () => {
-  if (typeof window === 'undefined') return
-  cancelCurrentTasks()
-  loading.value = true
-  errorMessage.value = ''
-
-  try {
-    if (viewMode.value === 'interleaved') {
-      await renderInterleavedPage()
-    } else {
-      const promises: Promise<any>[] = []
-      if ((viewMode.value === 'dual' || viewMode.value === 'en') && enPdfDoc) {
-        promises.push(renderSinglePage(enPdfDoc, currentPage.value, enCanvasRef.value))
-      }
-      if ((viewMode.value === 'dual' || viewMode.value === 'zh') && zhPdfDoc) {
-        promises.push(renderSinglePage(zhPdfDoc, currentPage.value, zhCanvasRef.value))
-      }
-      await Promise.all(promises)
-    }
-  } catch (err: any) {
-    if (err?.name !== 'RenderingCancelledException') {
-      console.error('页面渲染错误:', err)
-      errorMessage.value = `页面渲染错误: ${err?.message || '未知错误'}`
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    inputPage.value = currentPage.value
-    renderCurrentPage()
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < maxPages.value) {
-    currentPage.value++
-    inputPage.value = currentPage.value
-    renderCurrentPage()
-  }
-}
-
-const onPageInputChange = () => {
-  let val = parseInt(String(inputPage.value), 10)
-  if (isNaN(val)) val = 1
-  if (val < 1) val = 1
-  if (val > maxPages.value) val = maxPages.value
-  currentPage.value = val
-  inputPage.value = val
-  renderCurrentPage()
-}
-
-const setMode = (mode: 'dual' | 'interleaved' | 'zh' | 'en') => {
-  viewMode.value = mode
-  scale.value = computeFitScale()
-  renderCurrentPage()
-}
-
-const zoomIn = () => {
-  isAutoScaled.value = false
-  if (scale.value < 2.5) {
-    scale.value = parseFloat((scale.value + 0.15).toFixed(2))
-    renderCurrentPage()
-  }
-}
-
-const zoomOut = () => {
-  isAutoScaled.value = false
-  if (scale.value > 0.5) {
-    scale.value = parseFloat((scale.value - 0.15).toFixed(2))
-    renderCurrentPage()
-  }
-}
-
-const toggleZenMode = () => {
-  isZenMode.value = !isZenMode.value
-  nextTick(() => {
-    scale.value = computeFitScale()
-    renderCurrentPage()
-  })
-}
-
-const toggleFullscreen = () => {
-  if (!containerRef.value) return
-  if (!document.fullscreenElement) {
-    containerRef.value.requestFullscreen().catch(() => {})
-  } else {
-    document.exitFullscreen().catch(() => {})
-  }
-}
-
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-  if (e.key === 'ArrowLeft') {
-    prevPage()
-  } else if (e.key === 'ArrowRight') {
-    nextPage()
-  } else if (e.key === 'Escape' && isZenMode.value) {
-    isZenMode.value = false
-    scale.value = computeFitScale()
-    renderCurrentPage()
-  }
-}
-
-const onFullscreenChange = () => {
-  isFullscreen.value = !!document.fullscreenElement
-  scale.value = computeFitScale()
-  renderCurrentPage()
-}
-
-const handleResize = () => {
-  if (isAutoScaled.value) {
-    scale.value = computeFitScale()
-    renderCurrentPage()
   }
 }
 
@@ -730,13 +662,16 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  cancelCurrentTasks()
+  activeRenderTasks.forEach(task => {
+    try { if (task && task.cancel) task.cancel() } catch (_) {}
+  })
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 
 watch(() => [props.enSrc, props.zhSrc], () => {
+  renderedKeys.clear()
   loadPdfs()
 })
 </script>
@@ -746,16 +681,14 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   display: flex;
   flex-direction: column;
   background-color: var(--vp-c-bg);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
   overflow: hidden;
-  margin: 1.5rem 0 2rem 0;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
   width: 100%;
+  height: 100%;
   transition: all 0.25s ease;
+  position: relative;
 }
 
-/* 沉浸宽屏模式 (Zen Mode): 覆盖整个浏览器可视窗口，隐藏多余框架 */
+/* 沉浸宽屏模式 (Zen Mode) */
 .dual-pdf-reader.is-zen-mode {
   position: fixed;
   top: 0;
@@ -763,9 +696,6 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   right: 0;
   bottom: 0;
   z-index: 1000;
-  border-radius: 0;
-  margin: 0;
-  border: none;
   height: 100vh;
 }
 
@@ -777,8 +707,6 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   right: 0;
   bottom: 0;
   z-index: 9999;
-  border-radius: 0;
-  margin: 0;
   height: 100vh;
 }
 
@@ -788,27 +716,45 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 0.7rem 1.2rem;
+  padding: 0.5rem 0.8rem;
   background-color: var(--vp-c-bg-soft);
   border-bottom: 1px solid var(--vp-c-divider);
-  gap: 0.8rem;
+  gap: 0.6rem;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .toolbar-section {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .book-title {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--vp-c-text-1);
-  max-width: 380px;
+  max-width: 320px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.btn-info {
+  background: var(--vp-c-bg-mute);
+  color: var(--vp-c-brand-1);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-info:hover {
+  background: var(--vp-c-brand-soft);
+  border-color: var(--vp-c-brand-1);
 }
 
 /* 模式切换按钮组 */
@@ -822,8 +768,8 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 .mode-btn {
   border: none;
   background: transparent;
-  padding: 4px 12px;
-  font-size: 0.85rem;
+  padding: 3px 10px;
+  font-size: 0.82rem;
   border-radius: 4px;
   cursor: pointer;
   color: var(--vp-c-text-2);
@@ -839,13 +785,13 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 
 /* 翻页控制 */
 .ctrl-btn, .tool-btn {
-  padding: 4px 11px;
+  padding: 3px 9px;
   border: 1px solid var(--vp-c-divider);
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   transition: all 0.15s ease;
 }
 
@@ -868,87 +814,113 @@ watch(() => [props.enSrc, props.zhSrc], () => {
 .page-indicator {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .page-input {
-  width: 52px;
+  width: 48px;
   text-align: center;
-  padding: 3px 6px;
+  padding: 2px 4px;
   border: 1px solid var(--vp-c-divider);
   border-radius: 4px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .page-total {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--vp-c-text-2);
 }
 
 .zoom-value {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--vp-c-text-2);
-  min-width: 42px;
+  min-width: 38px;
   text-align: center;
 }
 
-/* 视窗区域：高度与宽度合理化拉伸 */
+/* 连续自然滚动视窗 */
 .reader-viewport {
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
   background-color: var(--vp-c-bg-alt);
-  min-height: 740px;
-  height: calc(90vh - 90px);
-  padding: 0.8rem 0.3rem;
-  gap: 0.8rem;
-  overflow: auto;
+  padding: 1rem 0.5rem 2rem 0.5rem;
+  scroll-behavior: smooth;
 }
 
-.is-zen-mode .reader-viewport,
-.is-fullscreen .reader-viewport {
-  height: calc(100vh - 110px);
-}
-
-.canvas-wrapper {
+.continuous-pages-stream {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 100%;
+  width: 100%;
+  gap: 1.5rem;
 }
 
-.column-badge {
-  font-size: 0.76rem;
-  padding: 3px 10px;
+.continuous-page-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.page-row-header {
+  margin-bottom: 0.45rem;
+}
+
+.page-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 2px 8px;
   border-radius: 4px;
-  margin-bottom: 0.6rem;
   background-color: var(--vp-c-bg-mute);
   color: var(--vp-c-text-2);
-  font-weight: 500;
 }
 
-.column-badge.badge-zh {
-  color: var(--vp-c-brand-1);
-  font-weight: 600;
+.page-canvases-group {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.2rem;
+  width: 100%;
 }
 
-.canvas-box {
+.canvas-card {
   background: white;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.16);
-  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
   overflow: hidden;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  position: relative;
 }
 
-.canvas-box canvas {
+.col-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  pointer-events: none;
+}
+
+.col-indicator-zh {
+  background: rgba(37, 99, 235, 0.85);
+}
+
+.canvas-card canvas {
   display: block;
 }
 
-/* 遮罩与状态 */
+/* 加载与状态 */
 .reader-loading {
   position: absolute;
   inset: 0;
@@ -961,6 +933,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   gap: 0.8rem;
   color: var(--vp-c-text-1);
   font-size: 0.95rem;
+  z-index: 10;
 }
 
 .spinner {
@@ -984,6 +957,7 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   padding: 0.6rem 1rem;
   border-radius: 6px;
   font-size: 0.85rem;
+  z-index: 10;
 }
 
 /* 底部状态与操作 */
@@ -992,12 +966,13 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1.2rem;
+  padding: 0.45rem 1rem;
   background: var(--vp-c-bg-soft);
   border-top: 1px solid var(--vp-c-divider);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--vp-c-text-2);
-  gap: 0.6rem;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .download-links {
@@ -1015,112 +990,108 @@ watch(() => [props.enSrc, props.zhSrc], () => {
   color: var(--vp-c-brand-2);
 }
 
-@media (max-width: 960px) {
-  .reader-viewport.mode-dual {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
-/* =========================================
-   段落级纵向中英交替卡片排版样式
-   ========================================= */
-.interleaved-wrapper {
+/* 本书导读模态弹窗 */
+.info-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-  gap: 1.2rem;
-  padding: 0.5rem 0.2rem 2.5rem 0.2rem;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
 }
 
-.interleaved-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  width: 100%;
-}
-
-.para-pair-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.info-modal-content {
   background: var(--vp-c-bg);
   border: 1px solid var(--vp-c-divider);
-  border-radius: 10px;
-  padding: 1.1rem 1.3rem;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
-}
-
-.para-pair-card:hover {
-  border-color: var(--vp-c-brand-1);
-  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.08);
-}
-
-.para-unit {
-  display: flex;
-  flex-direction: column;
+  border-radius: 12px;
+  max-width: 580px;
   width: 100%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.unit-meta {
+@keyframes fadeInModal {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.45rem;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--vp-c-divider);
 }
 
-.unit-badge {
-  font-size: 0.72rem;
+.modal-title {
+  font-size: 1.05rem;
   font-weight: 600;
-  padding: 2px 8px;
+  margin: 0;
+  color: var(--vp-c-text-1);
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--vp-c-text-2);
+  padding: 2px 6px;
   border-radius: 4px;
+}
+
+.modal-close:hover {
   background: var(--vp-c-bg-mute);
+  color: var(--vp-c-text-1);
+}
+
+.modal-body {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
   color: var(--vp-c-text-2);
 }
 
-.unit-badge.badge-zh {
-  background: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
+.info-label {
   font-weight: 600;
+  color: var(--vp-c-text-1);
 }
 
-.unit-note {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-}
-
-.slice-canvas-wrapper {
-  background: white;
-  border-radius: 6px;
-  overflow: hidden;
+.modal-downloads {
   display: flex;
-  justify-content: flex-start;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 3px 0;
-  width: 100%;
+  gap: 1rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--vp-c-divider);
 }
 
-.slice-canvas-wrapper canvas {
-  display: block;
-  max-width: 100%;
-  height: auto;
+.modal-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: var(--vp-c-brand-1);
+  color: #fff !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
 }
 
-.pair-divider {
-  height: 1px;
-  border-top: 1px dashed var(--vp-c-divider);
-  margin: 0.2rem 0;
-  width: 100%;
-}
-
-.empty-segments {
-  padding: 3rem 1rem;
-  text-align: center;
-  color: var(--vp-c-text-3);
-  font-size: 0.9rem;
+.modal-dl-btn:hover {
+  background: var(--vp-c-brand-2);
+  transform: translateY(-1px);
 }
 </style>

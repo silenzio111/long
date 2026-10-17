@@ -253,9 +253,9 @@
 
 /* 文档区 VPDoc 空间利用率最大化：右边距严格限定 2px */
 .VPDoc {
-  padding-top: 14px !important;
-  padding-bottom: 36px !important;
-  padding-left: 8px !important;
+  padding-top: 10px !important;
+  padding-bottom: 20px !important;
+  padding-left: 6px !important;
   padding-right: 2px !important;
   width: 100% !important;
 }
@@ -294,9 +294,68 @@
   margin: 0 !important;
 }
 
-/* 阅读器组件全宽无边距贴合 */
+/* =========================================================
+   阅读器沉浸模式：文档网页彻底不滚动，滚动完全发生在 PDF 阅读视窗内
+   ========================================================= */
+
+html:has(.reader-full-page),
+body:has(.reader-full-page),
+.reader-full-page {
+  overflow: hidden !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+.reader-full-page .VPContent {
+  height: calc(100vh - var(--vp-nav-height)) !important;
+  max-height: calc(100vh - var(--vp-nav-height)) !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+
+.reader-full-page .VPDoc {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  padding: 0 2px 0 4px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.reader-full-page .VPDoc .container,
+.reader-full-page .VPDoc .content,
+.reader-full-page .VPDoc .content-container,
+.reader-full-page .VPDoc .main,
+.reader-full-page .VPDoc .vp-doc {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 隐藏外层多余的文本与底部翻页链接，消除外层网页内容撑出的滚动条 */
+.reader-full-page .vp-doc > h1,
+.reader-full-page .vp-doc > blockquote,
+.reader-full-page .vp-doc > h3,
+.reader-full-page .vp-doc > p,
+.reader-full-page .vp-doc > ul,
+.reader-full-page .VPDocFooter {
+  display: none !important;
+}
+
+/* 阅读器组件：直接充满整屏，零边距贴合 */
 .dual-pdf-reader {
   width: 100% !important;
-  margin: 0.6rem 0 1.2rem 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  flex: 1 1 100% !important;
+  box-shadow: none !important;
 }
 
